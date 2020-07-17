@@ -12,7 +12,7 @@
 
 #### Syntax:
 ```yml
-`workshops:
+workshops:
 - begintime: 'your time'
   endtime: 'your time'
   draft: true/false
@@ -24,7 +24,7 @@
     - your prerequisites + links
   mentors:
     - you
-  zoom: 'zoomlink'`
+  zoom: 'zoomlink'
 ```
 
 
