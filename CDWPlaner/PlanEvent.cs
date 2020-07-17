@@ -7,20 +7,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using YamlDotNet.Serialization;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
-using System.Text;
-using System.Web;
-using System.Security.Cryptography;
 using Markdig;
 
 namespace CDWPlaner
@@ -214,7 +209,6 @@ namespace CDWPlaner
             {
                 foreach (var w in workshops.AsBsonArray)
                 {
-                
                     begintime = w["begintime"].ToString();
                     endtime = w["endtime"].ToString();
                     description = w["description"].ToString();
@@ -224,7 +218,7 @@ namespace CDWPlaner
                     bTime = begintime.Replace(":00Z", string.Empty).Split("T");
                     eTime = endtime.Replace(":00Z", string.Empty).Split("T");
                     timeString = bTime[1] + " - " + eTime[1];
-                
+
                     responseArray[i] = $@"<h3>{title}</h3>
                                           <p class=subtitle'>{timeString}<br/>
                                           {targetAudience}</p>
@@ -232,7 +226,7 @@ namespace CDWPlaner
                     i++;
                 }
             }
-            for (int i = 0; i< responseArray.Length; i++)
+            for (int i = 0; i < responseArray.Length; i++)
             {
                 responseBody += responseArray[i];
             }
