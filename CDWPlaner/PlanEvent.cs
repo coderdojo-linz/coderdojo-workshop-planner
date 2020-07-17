@@ -19,6 +19,9 @@ using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
 using System.Text;
+using System.Web;
+using System.Security.Cryptography;
+using Markdig;
 
 namespace CDWPlaner
 {
@@ -58,7 +61,8 @@ namespace CDWPlaner
             var commitListChanged = GetFolderAndFile(gitHubDataObject.commits.SelectMany(c => c.modified))
                 .Select(c => new WorkshopOperation { Operation = "modified", FolderInfo = c });
 
-            try {
+            try
+            {
                 // Add the data to the collection
                 foreach (var item in commitListAdded.Concat(commitListChanged))
                 {
@@ -66,7 +70,7 @@ namespace CDWPlaner
                     collector.Add(item);
                 }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 log.LogInformation("Wrong YML Format, check README.md for right format");
                 return new BadRequestResult();
@@ -170,6 +174,76 @@ namespace CDWPlaner
             log.LogInformation("RECEIVED");
             await Task.Delay(0);
         }
+
+        [FunctionName("GetDBContent")]
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger log)
+        {
+            log.LogInformation("C# HTTP trigger function processed a request.");
+
+            var date = req.Query["date"];
+
+            var dbCollection = GetCollectionFromServer();
+            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc); ;
+
+            // To filter all existing documents with specific foldername
+            var dateFilter = new BsonDocument("date", parsedDateEvent);
+            var dbEventsFound = dbCollection.Find(dateFilter).ToList();
+
+            var workshops = dbEventsFound[0].GetValue("workshops");
+
+            var begintime = string.Empty;
+            var endtime = string.Empty;
+            var description = string.Empty;
+            var title = string.Empty;
+            var targetAudience = string.Empty;
+            string[] responseArray = new string[10];
+            string[] bTime = new string[10];
+            string[] eTime = new string[10];
+            var timeString = string.Empty;
+            var responseString = string.Empty;
+            var responseBody = string.Empty;
+            var responseBegin = @"<section class='main'><table width = '100%'>
+                                    <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
+			                        <h1>Hallo&nbsp;*|FNAME|*,</h1>
+			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
+                                    ";
+            var responseEnd = @"</td></tr></tbody></table></section>";
+            for (int i = 0; i < workshops.AsBsonArray.Count; i++)
+            {
+                foreach (var w in workshops.AsBsonArray)
+                {
+                
+                    begintime = w["begintime"].ToString();
+                    endtime = w["endtime"].ToString();
+                    description = w["description"].ToString();
+                    title = w["title"].ToString();
+                    targetAudience = w["targetAudience"].ToString();
+
+                    bTime = begintime.Replace(":00Z", string.Empty).Split("T");
+                    eTime = endtime.Replace(":00Z", string.Empty).Split("T");
+                    timeString = bTime[1] + " - " + eTime[1];
+                
+                    responseArray[i] = $@"<h3>{title}</h3>
+                                          <p class=subtitle'>{timeString}<br/>
+                                          {targetAudience}</p>
+                                          <p>{description}</p>";
+                    i++;
+                }
+            }
+            for (int i = 0; i< responseArray.Length; i++)
+            {
+                responseBody += responseArray[i];
+            }
+
+            responseString = responseBegin + responseBody + responseEnd;
+
+            string responseMessage = Markdown.ToHtml(responseString);
+
+            return new OkObjectResult(responseMessage);
+        }
+
 
         //Connect with server and get collection
         public IMongoCollection<BsonDocument> GetCollectionFromServer()

@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 
@@ -13,6 +14,7 @@ namespace CDWPlaner
     public interface IGitHubFileReader
     {
         Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, IEnumerable<string> Id);
+        Task<WorkshopsRoot> GetYMLFileFromGitHubMaster(string info);
     }
 
     public class GitHubFileReader : IGitHubFileReader
@@ -30,6 +32,33 @@ namespace CDWPlaner
             // Make one id string
             var commitId = string.Join("", Id);
             var url = $"https://raw.githubusercontent.com/UndeMe/CDWPlaner/{commitId}/{info.FullFolder}";
+
+            var webGetRequest = new HttpRequestMessage
+            {
+                RequestUri = new Uri(url),
+                Method = HttpMethod.Get,
+                Headers = {
+                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'"},
+                    { HttpRequestHeader.Accept.ToString(), "application/json" },
+                    { "Timeout", "1000000000"},
+                },
+            };
+            using var getResponse = await client.SendAsync(webGetRequest);
+            var getContent = getResponse.Content;
+            var getYmlContent = getContent.ReadAsStringAsync().Result;
+
+            var ymlContent = new StringReader(getYmlContent);
+
+            var deserializer = new DeserializerBuilder().Build();
+
+            var yamlObject = deserializer.Deserialize<WorkshopsRoot>(ymlContent);
+            return yamlObject;
+        }
+
+        // GET request to GitHub to get the YML file data with specific URL without commitid
+        public async Task<WorkshopsRoot> GetYMLFileFromGitHubMaster(string info)
+        {
+            var url = $"https://raw.githubusercontent.com/UndeMe/master/CDWPlaner/{info}";
 
             var webGetRequest = new HttpRequestMessage
             {
