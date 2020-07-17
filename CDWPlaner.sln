@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30225.117
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CDWPlaner", "CDWPlaner\CDWPlaner.csproj", "{916809BF-9F51-4831-89B9-3E13CEF12105}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CDWPlaner", "CDWPlaner\CDWPlaner.csproj", "{916809BF-9F51-4831-89B9-3E13CEF12105}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CDWPlanner.Tests", "CDWPlanner.Tests\CDWPlanner.Tests.csproj", "{128639CF-5E36-4A86-9F7B-7CB177417843}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{916809BF-9F51-4831-89B9-3E13CEF12105}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{916809BF-9F51-4831-89B9-3E13CEF12105}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{916809BF-9F51-4831-89B9-3E13CEF12105}.Release|Any CPU.Build.0 = Release|Any CPU
+		{128639CF-5E36-4A86-9F7B-7CB177417843}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{128639CF-5E36-4A86-9F7B-7CB177417843}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{128639CF-5E36-4A86-9F7B-7CB177417843}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{128639CF-5E36-4A86-9F7B-7CB177417843}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

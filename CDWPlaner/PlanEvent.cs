@@ -18,16 +18,19 @@ using MongoDB.Bson;
 using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
+using System.Text;
 
 namespace CDWPlaner
 {
     public class PlanEvent
     {
         private readonly HttpClient client;
+        private readonly IGitHubFileReader fileReader;
 
-        public PlanEvent(IHttpClientFactory clientFactory)
+        public PlanEvent(IHttpClientFactory clientFactory, IGitHubFileReader fileReader)
         {
             client = clientFactory.CreateClient();
+            this.fileReader = fileReader;
         }
 
         [FunctionName("PlanEvent")]
@@ -59,7 +62,7 @@ namespace CDWPlaner
                 // Add the data to the collection
                 foreach (var item in commitListAdded.Concat(commitListChanged))
                 {
-                    item.Workshops = await GetYMLFileFromGitHub(item.FolderInfo, commitId);
+                    item.Workshops = await fileReader.GetYMLFileFromGitHub(item.FolderInfo, commitId);
                     collector.Add(item);
                 }
             }
@@ -181,35 +184,6 @@ namespace CDWPlaner
             var dbCollection = dbServer.GetCollection<BsonDocument>("events");
 
             return dbCollection;
-        }
-
-        // GET request to GitHub to get the YML file data with specific URL
-        private async Task< WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, IEnumerable<string> Id)
-        {
-            // Make one id string
-            var commitId = string.Join("", Id);
-            var url = $"https://raw.githubusercontent.com/UndeMe/CDWPlaner/{commitId}/{info.FullFolder}";
-
-            var webGetRequest = new HttpRequestMessage
-            {
-                RequestUri = new Uri(url),
-                Method = HttpMethod.Get,
-                Headers = {
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'"},
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000"},
-                },
-            };
-            using var getResponse = await client.SendAsync(webGetRequest);
-            var getContent = getResponse.Content;
-            var getYmlContent = getContent.ReadAsStringAsync().Result;
-
-            var ymlContent = new StringReader(getYmlContent);
-
-            var deserializer = new DeserializerBuilder().Build();
-            
-            var yamlObject = deserializer.Deserialize<WorkshopsRoot>(ymlContent);
-            return yamlObject;
         }
     }
 }
