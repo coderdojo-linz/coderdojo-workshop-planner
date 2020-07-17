@@ -12,7 +12,7 @@ namespace CDWPlaner
         public override void Configure(IFunctionsHostBuilder builder)
         {
             builder.Services.AddHttpClient();
-            builder.Services.AddSingleton<GitHubFileReader>();
+            builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
         }
     }
 }
