@@ -8,6 +8,7 @@ using Moq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -150,19 +151,23 @@ namespace CDWPlaner.Tests
         [Fact]
         public void AddWorkshopHtmlTest()
         {
-            var ws = BsonValue.Create(new
+            var ws = new BsonDocument();
+            ws.AddRange(new Dictionary<string, object>
             {
-                begintime = new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc).ToString().Replace(":00Z", string.Empty).Split("T").Last(),
-                endtime = new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc).ToString().Replace(":00Z", string.Empty).Split("T").Last(),
-                description = "*Bar*",
-                title = "Foo",
-                targetAudience = "FooBar",
-        });
+                { "begintime", new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc)},
+                { "endtime", new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc) },
+                { "description", "*Bar*" },
+                { "title", "Foo" },
+                { "targetAudience", "FooBar" },
+            });
             var builder = new StringBuilder();
             PlanEvent.AddWorkshopHtml(builder, ws);
 
+            var debugString = "\n<h3>Foo</h3>\n<p class='subtitle'>13:00 - 14:00<br/>\nFooBar</p>\n<p><em>Bar</em></p>";
+
+            Debug.WriteLine(builder.ToString()[^1..^1]); 
             Assert.Equal(
-                "\n<h3>Foo</h3>\n<p class=subtitle'>13:0014:00<br/>\nFooBar</p>\n<p><b>Bar<b/></p>",
+                debugString,
                 builder.ToString());
         }
     }

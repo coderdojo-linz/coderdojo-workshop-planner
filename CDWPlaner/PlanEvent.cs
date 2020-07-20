@@ -169,14 +169,14 @@ namespace CDWPlaner
 
             var begintime = w["begintime"].ToString();
             var endtime = w["endtime"].ToString();
-            var description = Markdown.ToHtml(w["description"].ToString());
-            var title = Markdown.ToHtml(w["title"].ToString());
-            var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString());
+            var description = Markdown.ToHtml(w["description"].ToString())[3..^5];
+            var title = Markdown.ToHtml(w["title"].ToString())[3..^5];
+            var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString())[3..^5];
             var bTime = ExtractTime(begintime);
             var eTime = ExtractTime(endtime);
             var timeString = $"{bTime} - {eTime}";
 
-            responseBuilder.Append($@"\n<h3>{title}</h3>\n<p class=subtitle'>{timeString}<br/>\n{targetAudience}</p>\n<p>{description}</p>");
+            responseBuilder.Append($@"\n<h3>{title}</h3>\n<p class='subtitle'>{timeString}<br/>\n{targetAudience}</p>\n<p>{description}</p>");
         }
     }
 }
