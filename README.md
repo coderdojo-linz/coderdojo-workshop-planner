@@ -6,7 +6,7 @@
 + Create for every date a new folder
 
 #### Create the YML File
-+ File must can be named like `PLAN.yml` ect.
++ File must be named `PLAN.yml` or `plan.yml`.
 + It must be a `.yml` or `.yaml` file
 + Insert your workshop data in that file. <br><b>Do not create a file for every single workshop!</b>
 
