@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MongoDB.Bson;
+using System;
 using System.Collections.Generic;
 
 namespace CDWPlaner.DTO
@@ -53,6 +54,18 @@ namespace CDWPlaner.DTO
         public string prerequisites { get; set; }
         public List<string> mentors { get; set; }
         public string zoom { get; set; }
+
+        public static implicit operator BsonDocument(Workshop ws) =>
+            new BsonDocument {
+                { "begintime" , ws.begintime},
+                { "endtime" , ws.endtime},
+                { "title" , ws.title},
+                { "targetAudience" , ws.targetAudience},
+                { "description" , ws.description},
+                { "prerequisites" , ws.prerequisites},
+                { "mentors", new BsonArray(ws.mentors)},
+                { "zoom" , ws.zoom }
+            };
     }
     public class WorkshopsRoot
     {

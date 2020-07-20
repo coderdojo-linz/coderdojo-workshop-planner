@@ -85,58 +85,22 @@ namespace CDWPlaner
             // Now it's JSON
             var workshopOperation = JsonSerializer.Deserialize<WorkshopOperation>(workshopJson);
 
-            var begintime = DateTime.Now;
-            var endtime = DateTime.Now;
-            var description = string.Empty;
-            var prerequisites = string.Empty;
-            var mentors = new List<string> { };
-            var title = string.Empty;
-            var targetAudience = string.Empty;
-            var zoom = string.Empty;
-
             var dateFolder = workshopOperation?.FolderInfo?.DateFolder;
             // modified or added
             var operation = workshopOperation?.Operation;
 
             var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
-
-            var workshopData = new BsonArray();
             var found = dbEventsFound != null;
 
             // Get workshops and write it into an array only if draft flag is false
+            var workshopData = new BsonArray();
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
             {
-                // Get workshop data
-                begintime = w.begintime;
-                endtime = w.endtime;
-                description = w.description;
-                prerequisites = w.prerequisites;
-                mentors = w.mentors;
-                title = w.title;
-                targetAudience = w.targetAudience;
-                zoom = w.zoom;
-
-                // It's YML/ Convert it into one
-                workshopData.Add(new BsonDocument {
-                        { "begintime" , begintime},
-                        { "endtime" , endtime},
-                        { "title" , title},
-                        { "targetAudience" , targetAudience},
-                        { "description" , description},
-                        { "prerequisites" , prerequisites},
-                        { "mentors", new BsonArray(mentors)},
-                        { "zoom" , zoom }
-                    });
+                workshopData.Add(w);
             }
 
-            var eventData = new BsonDocument();
-            eventData.AddRange(new Dictionary<string, object> {
-                    {  "date", parsedDateEvent },
-                    { "type", "CoderDojo Virtual" },
-                    { "location", "CoderDojo Online" },
-                    { "workshops", workshopData}
-             });
+            var eventData = BuildEventDocument(parsedDateEvent, workshopData);
 
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
@@ -151,6 +115,19 @@ namespace CDWPlaner
             }
 
             log.LogInformation("Successfully written data to db");
+        }
+
+        private static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
+        {
+            var eventData = new BsonDocument();
+            eventData.AddRange(new Dictionary<string, object> {
+                { "date", parsedDateEvent },
+                { "type", "CoderDojo Virtual" },
+                { "location", "CoderDojo Online" },
+                { "workshops", workshopData}
+            });
+
+            return eventData;
         }
 
         [FunctionName("GetDBContent")]
@@ -196,6 +173,6 @@ namespace CDWPlaner
         }
 
 
-       
+
     }
 }
