@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace CDWPlanner.Tests
+namespace CDWPlaner.Tests
 {
     public class EventDataAccessTests
     {
@@ -51,11 +51,11 @@ namespace CDWPlanner.Tests
             dataAccessMock.Verify(da => da.ReadWorkshopForDateAsync(It.IsAny<DateTime>()), Times.Once);
             dataAccessMock.Verify(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()), Times.Once);
 
-            Assert.Equal((new DateTime(2020, 7, 17, 0, 0, 0, 0, DateTimeKind.Utc)), insertedDocument["date"]);
+            Assert.Single(insertedDocument["workshops"] as BsonArray);
         }
 
         [Fact]
-        public async Task AddNewWorkshop()
+        public void ConvertWorkshopToBson()
         {
             var workshop = new Workshop {
                 begintime = new DateTime(2020, 7, 17, 13, 45, 0, 0, DateTimeKind.Utc),

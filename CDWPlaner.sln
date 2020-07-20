@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30225.117
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CDWPlaner", "CDWPlaner\CDWPlaner.csproj", "{916809BF-9F51-4831-89B9-3E13CEF12105}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CDWPlanner.Tests", "CDWPlanner.Tests\CDWPlanner.Tests.csproj", "{128639CF-5E36-4A86-9F7B-7CB177417843}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CDWPlaner.Tests", "CDWPlanner.Tests\CDWPlaner.Tests.csproj", "{128639CF-5E36-4A86-9F7B-7CB177417843}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

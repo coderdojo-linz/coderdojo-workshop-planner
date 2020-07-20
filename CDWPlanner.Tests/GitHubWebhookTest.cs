@@ -3,14 +3,16 @@ using CDWPlaner.DTO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using Moq;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace CDWPlanner.Tests
+namespace CDWPlaner.Tests
 {
     public class GitHubWebhookTest
     {
@@ -58,6 +60,25 @@ namespace CDWPlanner.Tests
             Assert.Equal("2020-07-17", operation.FolderInfo.DateFolder);
             Assert.Equal("2020-07-17/PLAN.yml", operation.FolderInfo.FullFolder);
             Assert.Equal("modified", operation.Operation);
+        }
+
+        [Fact]
+        public void BuildEventDocument()
+        {
+            var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
+                new BsonArray(new[] { "Foo", "Bar" }));
+
+            Assert.Equal(new DateTime(2020, 12, 31), builtEvent["date"]);
+            // ...
+        }
+
+        [Fact]
+        public void BuildEventDocumentWithoutWorkshops()
+        {
+            var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
+                new BsonArray());
+
+            // Check if location is correct
         }
     }
 }

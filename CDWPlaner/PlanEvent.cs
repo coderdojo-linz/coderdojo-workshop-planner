@@ -116,7 +116,7 @@ namespace CDWPlaner
             log.LogInformation("Successfully written data to db");
         }
 
-        private static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
+        internal static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
         {
             var eventData = new BsonDocument();
             eventData.AddRange(new Dictionary<string, object> {
@@ -126,9 +126,9 @@ namespace CDWPlaner
                 { "workshops", workshopData}
             });
 
-            if(workshopData == null)
+            if(workshopData == null || workshopData.Count == 0)
             {
-                eventData["location"] = "CoderDojo Online - Themen werden noch bekannt gegeben";
+                eventData["location"] += " - Themen werden noch bekannt gegeben";
             }
             return eventData;
         }

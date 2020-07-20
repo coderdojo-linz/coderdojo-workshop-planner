@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 
 [assembly: FunctionsStartup(typeof(CDWPlaner.Startup))]
-//[assembly: InternalsVisibleTo("CDWPlaner.Tests")]
+[assembly: InternalsVisibleTo("CDWPlaner.Tests")]
 
 namespace CDWPlaner
 {
