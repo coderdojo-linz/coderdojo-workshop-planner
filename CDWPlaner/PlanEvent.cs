@@ -17,12 +17,12 @@ using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
 using Markdig;
+using System.Text;
 
 namespace CDWPlaner
 {
     public class PlanEvent
     {
-        private readonly HttpClient client;
         private readonly IGitHubFileReader fileReader;
 
         public PlanEvent(IGitHubFileReader fileReader)
@@ -174,33 +174,31 @@ namespace CDWPlaner
             var dbEventsFound = await dbEvents.ToListAsync();
 
             var workshops = dbEventsFound[0].GetValue("workshops");
-            var responseBody = string.Empty;
-            var responseBegin = @"<section class='main'><table width = '100%'>
+            var responseBuilder = new StringBuilder(@"<section class='main'><table width = '100%'>
                                     <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
 			                        <h1>Hallo&nbsp;*|FNAME|*,</h1>
 			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
-                                    ";
-            var responseEnd = @"</td></tr></tbody></table></section>";
+                                    ");
             foreach (var w in workshops.AsBsonArray)
             {
                 var begintime = w["begintime"].ToString();
                 var endtime = w["endtime"].ToString();
-                var description = w["description"].ToString();
-                var title = w["title"].ToString();
-                var targetAudience = w["targetAudience"].ToString();
+                var description = Markdown.ToHtml(w["description"].ToString());
+                var title = Markdown.ToHtml(w["title"].ToString());
+                var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString());
                 var bTime = begintime.Replace(":00Z", string.Empty).Split("T");
                 var eTime = endtime.Replace(":00Z", string.Empty).Split("T");
                 var timeString = bTime[1] + " - " + eTime[1];
 
-                responseBody += $@"<h3>{title}</h3>
+                responseBuilder.Append($@"<h3>{title}</h3>
                                           <p class=subtitle'>{timeString}<br/>
                                           {targetAudience}</p>
-                                          <p>{description}</p>";
+                                          <p>{description}</p>");
             }
 
-            var responseString = responseBegin + responseBody + responseEnd;
+            responseBuilder.Append(@"</td></tr></tbody></table></section>");
 
-            string responseMessage = Markdown.ToHtml(responseString);
+            var responseMessage = responseBuilder.ToString();
 
             return new OkObjectResult(responseMessage);
         }
