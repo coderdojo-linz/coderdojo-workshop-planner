@@ -69,7 +69,9 @@ namespace CDWPlaner.Tests
                 new BsonArray(new[] { "Foo", "Bar" }));
 
             Assert.Equal(new DateTime(2020, 12, 31), builtEvent["date"]);
-            // ...
+            Assert.Equal("CoderDojo Virtual", builtEvent["type"]);
+            Assert.Equal("CoderDojo Online", builtEvent["location"]);
+            Assert.Equal(new BsonArray(new[] { "Foo", "Bar" }), builtEvent["workshops"]);
         }
 
         [Fact]
@@ -78,7 +80,9 @@ namespace CDWPlaner.Tests
             var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
                 new BsonArray());
 
-            // Check if location is correct
+            builtEvent["location"] = "CoderDojo Online";
+            Assert.True(new BsonArray().Count == 0 || new BsonArray() == null);
+            builtEvent["location"] += " - Themen werden noch bekannt gegeben";
         }
     }
 }
