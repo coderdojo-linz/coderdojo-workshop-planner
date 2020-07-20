@@ -40,3 +40,16 @@ workshops:
 |mentors| Probably you|
 |zoom| Zoom - link|
 
+
+These following parameter are needed to be created in the Azure function
+
+| Setting Parameter                | Description |
+| ------------             | ----------- |
+|`MONGOUSER`|Your username, you need to have admin rights|
+|`MONGOPASSWORD`|Your password|
+|`MONGODB`|The database name e.g. `member-management-test`|
+|`MONGOCONNECTION`|The collection name e.g. `events`|
+|`MONGOCOLLECTION`|A connection string, more details: https://docs.mlab.com/connecting/#connect-string|
+|`ServiceBusConnection`||
+
+

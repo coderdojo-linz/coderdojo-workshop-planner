@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -127,6 +126,10 @@ namespace CDWPlaner
                 { "workshops", workshopData}
             });
 
+            if(workshopData == null)
+            {
+                eventData["location"] = "CoderDojo Online - Themen werden noch bekannt gegeben";
+            }
             return eventData;
         }
 
@@ -171,8 +174,5 @@ namespace CDWPlaner
 
             return new OkObjectResult(responseMessage);
         }
-
-
-
     }
 }
