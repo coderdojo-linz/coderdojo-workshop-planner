@@ -45,7 +45,7 @@ namespace CDWPlaner.Tests
             var logger = Mock.Of<ILogger>();
 
             var fileReader = new Mock<IGitHubFileReader>();
-            fileReader.Setup(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<IEnumerable<string>>()))
+            fileReader.Setup(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
@@ -54,7 +54,7 @@ namespace CDWPlaner.Tests
 
             Assert.IsType<AcceptedResult>(result);
             collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()), Times.Once);
-            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<IEnumerable<string>>()), Times.Once);
+            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Once);
             Assert.NotNull(operation);
             Assert.Equal("PLAN.yml", operation.FolderInfo.File);
             Assert.Equal("2020-07-17", operation.FolderInfo.DateFolder);

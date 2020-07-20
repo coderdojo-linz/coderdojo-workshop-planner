@@ -39,36 +39,37 @@ namespace CDWPlaner
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var gitHubDataObject = JsonSerializer.Deserialize<GitHubData>(requestBody);
-            var commitId = gitHubDataObject.commits.Select(c => c.id);
-
-            // Get folder and file info from latest commit
-            static IEnumerable<FolderFileInfo> GetFolderAndFile(IEnumerable<string> items) =>
-                items.Distinct()
-                    .Select(item => new { fullFolder = item, splittedFolder = item.Split("/") })
-                    .Where(item => item.splittedFolder.Length >= 2)
-                    .Where(item => item.splittedFolder[^1].EndsWith(".yml") || item.splittedFolder[^1].EndsWith(".yaml"))
-                    .Where(item => Regex.IsMatch(item.splittedFolder[^2], @"^\d{4}-\d{2}-\d{2}$"))
-                    .Select(item => new FolderFileInfo { FullFolder = item.fullFolder, DateFolder = item.splittedFolder[^2], File = item.splittedFolder[^1] });
-
-            // Add them to a list, one for modiefied, one for new folders/files
-            var commitListAdded = GetFolderAndFile(gitHubDataObject.commits.SelectMany(c => c.added))
-                .Select(c => new WorkshopOperation { Operation = "added", FolderInfo = c });
-            var commitListChanged = GetFolderAndFile(gitHubDataObject.commits.SelectMany(c => c.modified))
-                .Select(c => new WorkshopOperation { Operation = "modified", FolderInfo = c });
-
-            try
+            foreach (var commit in gitHubDataObject.commits)
             {
-                // Add the data to the collection
-                foreach (var item in commitListAdded.Concat(commitListChanged))
+                // Get folder and file info from latest commit
+                static IEnumerable<FolderFileInfo> GetFolderAndFile(IEnumerable<string> items) =>
+                    items.Distinct()
+                        .Select(item => new { fullFolder = item, splittedFolder = item.Split("/") })
+                        .Where(item => item.splittedFolder.Length >= 2)
+                        .Where(item => item.splittedFolder[^1].EndsWith(".yml") || item.splittedFolder[^1].EndsWith(".yaml"))
+                        .Where(item => Regex.IsMatch(item.splittedFolder[^2], @"^\d{4}-\d{2}-\d{2}$"))
+                        .Select(item => new FolderFileInfo { FullFolder = item.fullFolder, DateFolder = item.splittedFolder[^2], File = item.splittedFolder[^1] });
+
+                // Add them to a list, one for modiefied, one for new folders/files
+                var commitListAdded = GetFolderAndFile(commit.added)
+                    .Select(c => new WorkshopOperation { Operation = "added", FolderInfo = c });
+                var commitListChanged = GetFolderAndFile(commit.modified)
+                    .Select(c => new WorkshopOperation { Operation = "modified", FolderInfo = c });
+
+                try
                 {
-                    item.Workshops = await fileReader.GetYMLFileFromGitHub(item.FolderInfo, commitId);
-                    collector.Add(item);
+                    // Add the data to the collection
+                    foreach (var item in commitListAdded.Concat(commitListChanged))
+                    {
+                        item.Workshops = await fileReader.GetYMLFileFromGitHub(item.FolderInfo, commit.id);
+                        collector.Add(item);
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                log.LogInformation("Wrong YML Format, check README.md for right format");
-                return new BadRequestResult();
+                catch (Exception)
+                {
+                    log.LogInformation("Wrong YML Format, check README.md for right format");
+                    return new BadRequestResult();
+                }
             }
 
             return new AcceptedResult();

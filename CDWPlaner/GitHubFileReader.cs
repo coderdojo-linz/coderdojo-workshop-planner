@@ -13,7 +13,7 @@ namespace CDWPlaner
 {
     public interface IGitHubFileReader
     {
-        Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, IEnumerable<string> Id);
+        Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, string Id);
         Task<WorkshopsRoot> GetYMLFileFromGitHubMaster(string info);
     }
 
@@ -27,10 +27,8 @@ namespace CDWPlaner
         }
 
         // GET request to GitHub to get the YML file data with specific URL
-        public async Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, IEnumerable<string> Id)
+        public async Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, string commitId)
         {
-            // Make one id string
-            var commitId = string.Join("", Id);
             var url = $"https://raw.githubusercontent.com/UndeMe/CDWPlaner/{commitId}/{info.FullFolder}";
 
             var webGetRequest = new HttpRequestMessage
