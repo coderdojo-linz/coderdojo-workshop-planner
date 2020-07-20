@@ -8,6 +8,7 @@ using Moq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -151,15 +152,17 @@ namespace CDWPlaner.Tests
         {
             var ws = BsonValue.Create(new
             {
-                begintime = new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc),
-                endtime = new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc),
-            });
-
+                begintime = new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc).ToString().Replace(":00Z", string.Empty).Split("T").Last(),
+                endtime = new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc).ToString().Replace(":00Z", string.Empty).Split("T").Last(),
+                description = "*Bar*",
+                title = "Foo",
+                targetAudience = "FooBar",
+        });
             var builder = new StringBuilder();
             PlanEvent.AddWorkshopHtml(builder, ws);
 
             Assert.Equal(
-                "\n<h3>Foo</h3>\n<p>...",
+                "\n<h3>Foo</h3>\n<p class=subtitle'>13:0014:00<br/>\nFooBar</p>\n<p><b>Bar<b/></p>",
                 builder.ToString());
         }
     }
