@@ -96,16 +96,12 @@ namespace CDWPlaner
             // modified or added
             var operation = workshopOperation?.Operation;
 
-            var dbCollection = GetCollectionFromServer();
-            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc); ;
-
-            // To filter all existing documents with specific foldername
-            var dateFilter = new BsonDocument("date", parsedDateEvent);
-            var dbEvents = await dbCollection.FindAsync(dateFilter);
-            var dbEventsFound = await dbEvents.ToListAsync();
+            var dataAccess = new DataAccess();
+            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
+            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
 
             var workshopData = new BsonArray();
-            var found = dbEventsFound.Count > 0;
+            var found = dbEventsFound != null;
 
             // Get workshops and write it into an array only if draft flag is false
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
@@ -144,13 +140,13 @@ namespace CDWPlaner
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
-                dbCollection.InsertOne(eventData);
+                await dataAccess.InsertIntoDB(eventData);
                 found = true;
             }
 
             if (operation == "modified" || found == true)
             {
-                dbCollection.ReplaceOne(dateFilter, eventData);
+                await dataAccess.ReplaceDataOfDB(parsedDateEvent, eventData);
             }
 
             log.LogInformation("Successfully written data to db");
@@ -165,21 +161,18 @@ namespace CDWPlaner
 
             var date = req.Query["date"];
 
-            var dbCollection = GetCollectionFromServer();
-            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc); ;
-
-            // To filter all existing documents with specific foldername
+            var dataAccess = new DataAccess();
+            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
             var dateFilter = new BsonDocument("date", parsedDateEvent);
-            var dbEvents = await dbCollection.FindAsync(dateFilter);
-            var dbEventsFound = await dbEvents.ToListAsync();
+            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
 
-            var workshops = dbEventsFound[0].GetValue("workshops");
+            var workshops = dbEventsFound.GetElement("workshops");
             var responseBuilder = new StringBuilder(@"<section class='main'><table width = '100%'>
                                     <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
 			                        <h1>Hallo&nbsp;*|FNAME|*,</h1>
 			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
                                     ");
-            foreach (var w in workshops.AsBsonArray)
+            foreach (var w in workshops.Value.AsBsonArray)
             {
                 var begintime = w["begintime"].ToString();
                 var endtime = w["endtime"].ToString();
@@ -204,22 +197,6 @@ namespace CDWPlaner
         }
 
 
-        //Connect with server and get collection
-        public IMongoCollection<BsonDocument> GetCollectionFromServer()
-        {
-            var dbUser = Environment.GetEnvironmentVariable("MONGOUSER", EnvironmentVariableTarget.Process);
-            var dbPassword = Environment.GetEnvironmentVariable("MONGOPASSWORD", EnvironmentVariableTarget.Process);
-            var dbString = Environment.GetEnvironmentVariable("MONGODB", EnvironmentVariableTarget.Process);
-            var dbConnection = Environment.GetEnvironmentVariable("MONGOCONNECTION", EnvironmentVariableTarget.Process);
-            var dbCollectionString = Environment.GetEnvironmentVariable("MONGOCOLLECTION", EnvironmentVariableTarget.Process);
-
-            var urlMongo = $"mongodb://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=false";
-            var dbClient = new MongoClient(urlMongo);
-
-            var dbServer = dbClient.GetDatabase($"{dbString}");
-            var dbCollection = dbServer.GetCollection<BsonDocument>($"{dbCollectionString}");
-
-            return dbCollection;
-        }
+       
     }
 }
