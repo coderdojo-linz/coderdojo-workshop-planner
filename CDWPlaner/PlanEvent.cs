@@ -24,10 +24,12 @@ namespace CDWPlaner
     public class PlanEvent
     {
         private readonly IGitHubFileReader fileReader;
+        private readonly IDataAccess dataAccess;
 
-        public PlanEvent(IGitHubFileReader fileReader)
+        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess)
         {
             this.fileReader = fileReader;
+            this.dataAccess = dataAccess;
         }
 
         [FunctionName("PlanEvent")]
@@ -96,7 +98,6 @@ namespace CDWPlaner
             // modified or added
             var operation = workshopOperation?.Operation;
 
-            var dataAccess = new DataAccess();
             var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
 
@@ -140,13 +141,13 @@ namespace CDWPlaner
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
-                await dataAccess.InsertIntoDB(eventData);
+                await dataAccess.InsertIntoDBAsync(eventData);
                 found = true;
             }
 
             if (operation == "modified" || found == true)
             {
-                await dataAccess.ReplaceDataOfDB(parsedDateEvent, eventData);
+                await dataAccess.ReplaceDataOfDBAsync(parsedDateEvent, eventData);
             }
 
             log.LogInformation("Successfully written data to db");
@@ -161,9 +162,7 @@ namespace CDWPlaner
 
             var date = req.Query["date"];
 
-            var dataAccess = new DataAccess();
             var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
-            var dateFilter = new BsonDocument("date", parsedDateEvent);
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
 
             var workshops = dbEventsFound.GetElement("workshops");

@@ -9,9 +9,17 @@ using System.Threading.Tasks;
 
 namespace CDWPlaner
 {
-    public class DataAccess
+    public interface IDataAccess
     {
-        private IMongoCollection<BsonDocument> collection;
+        Task<BsonDocument> ReadWorkshopForDateAsync(DateTime date);
+        Task InsertIntoDBAsync(BsonDocument eventData);
+        Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData);
+
+    };
+
+    public class DataAccess : IDataAccess
+    {
+        private readonly IMongoCollection<BsonDocument> collection;
 
         public DataAccess()
         {
@@ -44,16 +52,17 @@ namespace CDWPlaner
             return dbEventsFound.FirstOrDefault();
         }
 
-        public async Task InsertIntoDB(BsonDocument eventData)
+        public async Task InsertIntoDBAsync(BsonDocument eventData)
         {
             var collection = GetCollectionFromServer();
-            collection.InsertOne(eventData);
+            await collection.InsertOneAsync(eventData);
         }
-        public async Task ReplaceDataOfDB(DateTime date, BsonDocument eventData)
+
+        public async Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData)
         {
             var dateFilter = new BsonDocument("date", date);
             var collection = GetCollectionFromServer();
-            collection.ReplaceOne(dateFilter, eventData);
+            await collection.ReplaceOneAsync(dateFilter, eventData);
         }
     }
 }
