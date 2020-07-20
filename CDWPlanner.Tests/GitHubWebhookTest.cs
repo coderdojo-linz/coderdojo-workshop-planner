@@ -40,7 +40,6 @@ namespace CDWPlanner.Tests
                 .Callback<WorkshopOperation>(wo => operation = wo)
                 .Verifiable();
 
-            var factory = Mock.Of<IHttpClientFactory>();
             var logger = Mock.Of<ILogger>();
 
             var fileReader = new Mock<IGitHubFileReader>();
@@ -48,7 +47,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(factory, fileReader.Object);
+            var planEvent = new PlanEvent(fileReader.Object);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);

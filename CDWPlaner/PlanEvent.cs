@@ -25,9 +25,8 @@ namespace CDWPlaner
         private readonly HttpClient client;
         private readonly IGitHubFileReader fileReader;
 
-        public PlanEvent(IHttpClientFactory clientFactory, IGitHubFileReader fileReader)
+        public PlanEvent(IGitHubFileReader fileReader)
         {
-            client = clientFactory.CreateClient();
             this.fileReader = fileReader;
         }
 
@@ -77,7 +76,6 @@ namespace CDWPlaner
         // Subscribtion of PlanEvent Topic
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
-        [Obsolete]
         public async Task Receive(
             [ServiceBusTrigger("workshopupdate", "transfer-to-db", Connection = "ServiceBusConnection")] string workshopJson,
             ILogger log)
@@ -103,26 +101,15 @@ namespace CDWPlaner
 
             // To filter all existing documents with specific foldername
             var dateFilter = new BsonDocument("date", parsedDateEvent);
-            var dbEventsFound = dbCollection.Find(dateFilter).ToList();
+            var dbEvents = await dbCollection.FindAsync(dateFilter);
+            var dbEventsFound = await dbEvents.ToListAsync();
 
             var workshopData = new BsonArray();
-            var found = true;
-
-            // If document with the same date already exists, check if's after foreach
-            if (dbEventsFound.Count == 0)
-            {
-                found = false;
-            }
+            var found = dbEventsFound.Count > 0;
 
             // Get workshops and write it into an array only if draft flag is false
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
             {
-                // No workshops found
-                if (w == null)
-                {
-                    break;
-                }
-
                 // Get workshop data
                 begintime = w.begintime;
                 endtime = w.endtime;
@@ -146,12 +133,13 @@ namespace CDWPlaner
                     });
             }
 
-            var eventData = new BsonDocument {
-                    dateFilter,
+            var eventData = new BsonDocument();
+            eventData.AddRange(new Dictionary<string, object> {
+                    {  "date", parsedDateEvent },
                     { "type", "CoderDojo Virtual" },
-                    { "location", "CoderDojo Online - Themen werden noch bekanntgegeben" },
+                    { "location", "CoderDojo Online" },
                     { "workshops", workshopData}
-                };
+             });
 
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
@@ -165,9 +153,7 @@ namespace CDWPlaner
                 dbCollection.ReplaceOne(dateFilter, eventData);
             }
 
-            // Just some receive message
-            log.LogInformation("RECEIVED");
-            await Task.Delay(0);
+            log.LogInformation("Successfully written data to db");
         }
 
         [FunctionName("GetDBContent")]
@@ -184,20 +170,10 @@ namespace CDWPlaner
 
             // To filter all existing documents with specific foldername
             var dateFilter = new BsonDocument("date", parsedDateEvent);
-            var dbEventsFound = dbCollection.Find(dateFilter).ToList();
+            var dbEvents = await dbCollection.FindAsync(dateFilter);
+            var dbEventsFound = await dbEvents.ToListAsync();
 
             var workshops = dbEventsFound[0].GetValue("workshops");
-
-            var begintime = string.Empty;
-            var endtime = string.Empty;
-            var description = string.Empty;
-            var title = string.Empty;
-            var targetAudience = string.Empty;
-            string[] responseArray = new string[10];
-            string[] bTime = new string[10];
-            string[] eTime = new string[10];
-            var timeString = string.Empty;
-            var responseString = string.Empty;
             var responseBody = string.Empty;
             var responseBegin = @"<section class='main'><table width = '100%'>
                                     <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
@@ -205,33 +181,24 @@ namespace CDWPlaner
 			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
                                     ";
             var responseEnd = @"</td></tr></tbody></table></section>";
-            for (int i = 0; i < workshops.AsBsonArray.Count; i++)
+            foreach (var w in workshops.AsBsonArray)
             {
-                foreach (var w in workshops.AsBsonArray)
-                {
-                    begintime = w["begintime"].ToString();
-                    endtime = w["endtime"].ToString();
-                    description = w["description"].ToString();
-                    title = w["title"].ToString();
-                    targetAudience = w["targetAudience"].ToString();
+                var begintime = w["begintime"].ToString();
+                var endtime = w["endtime"].ToString();
+                var description = w["description"].ToString();
+                var title = w["title"].ToString();
+                var targetAudience = w["targetAudience"].ToString();
+                var bTime = begintime.Replace(":00Z", string.Empty).Split("T");
+                var eTime = endtime.Replace(":00Z", string.Empty).Split("T");
+                var timeString = bTime[1] + " - " + eTime[1];
 
-                    bTime = begintime.Replace(":00Z", string.Empty).Split("T");
-                    eTime = endtime.Replace(":00Z", string.Empty).Split("T");
-                    timeString = bTime[1] + " - " + eTime[1];
-
-                    responseArray[i] = $@"<h3>{title}</h3>
+                responseBody += $@"<h3>{title}</h3>
                                           <p class=subtitle'>{timeString}<br/>
                                           {targetAudience}</p>
                                           <p>{description}</p>";
-                    i++;
-                }
-            }
-            for (int i = 0; i < responseArray.Length; i++)
-            {
-                responseBody += responseArray[i];
             }
 
-            responseString = responseBegin + responseBody + responseEnd;
+            var responseString = responseBegin + responseBody + responseEnd;
 
             string responseMessage = Markdown.ToHtml(responseString);
 
@@ -242,14 +209,17 @@ namespace CDWPlaner
         //Connect with server and get collection
         public IMongoCollection<BsonDocument> GetCollectionFromServer()
         {
-            var dbuser = Environment.GetEnvironmentVariable("MONGOUSER", EnvironmentVariableTarget.Process);
-            var dbpassword = Environment.GetEnvironmentVariable("MONGOPASSWORD", EnvironmentVariableTarget.Process);
+            var dbUser = Environment.GetEnvironmentVariable("MONGOUSER", EnvironmentVariableTarget.Process);
+            var dbPassword = Environment.GetEnvironmentVariable("MONGOPASSWORD", EnvironmentVariableTarget.Process);
+            var dbString = Environment.GetEnvironmentVariable("MONGODB", EnvironmentVariableTarget.Process);
+            var dbConnection = Environment.GetEnvironmentVariable("MONGOCONNECTION", EnvironmentVariableTarget.Process);
+            var dbCollectionString = Environment.GetEnvironmentVariable("MONGOCOLLECTION", EnvironmentVariableTarget.Process);
 
-            var urlMongo = $"mongodb://{dbuser}:{dbpassword}@ds042898.mlab.com:42898/member-management-test/?retryWrites=false";
+            var urlMongo = $"mongodb://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=false";
             var dbClient = new MongoClient(urlMongo);
 
-            var dbServer = dbClient.GetDatabase("member-management-test");
-            var dbCollection = dbServer.GetCollection<BsonDocument>("events");
+            var dbServer = dbClient.GetDatabase($"{dbString}");
+            var dbCollection = dbServer.GetCollection<BsonDocument>($"{dbCollectionString}");
 
             return dbCollection;
         }
