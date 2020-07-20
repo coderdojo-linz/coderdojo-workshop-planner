@@ -17,6 +17,7 @@ using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
 using Markdig;
 using System.Text;
+using Microsoft.Azure.Amqp.Framing;
 
 namespace CDWPlaner
 {
@@ -139,8 +140,6 @@ namespace CDWPlaner
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
             var date = req.Query["date"];
 
             var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
@@ -154,19 +153,7 @@ namespace CDWPlaner
                                     ");
             foreach (var w in workshops.Value.AsBsonArray)
             {
-                var begintime = w["begintime"].ToString();
-                var endtime = w["endtime"].ToString();
-                var description = Markdown.ToHtml(w["description"].ToString());
-                var title = Markdown.ToHtml(w["title"].ToString());
-                var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString());
-                var bTime = begintime.Replace(":00Z", string.Empty).Split("T");
-                var eTime = endtime.Replace(":00Z", string.Empty).Split("T");
-                var timeString = bTime[1] + " - " + eTime[1];
-
-                responseBuilder.Append($@"<h3>{title}</h3>
-                                          <p class=subtitle'>{timeString}<br/>
-                                          {targetAudience}</p>
-                                          <p>{description}</p>");
+                AddWorkshopHtml(responseBuilder, w);
             }
 
             responseBuilder.Append(@"</td></tr></tbody></table></section>");
@@ -174,6 +161,22 @@ namespace CDWPlaner
             var responseMessage = responseBuilder.ToString();
 
             return new OkObjectResult(responseMessage);
+        }
+
+        internal static void AddWorkshopHtml(StringBuilder responseBuilder, BsonValue w)
+        {
+            static string ExtractTime(string begintime) => begintime.Replace(":00Z", string.Empty).Split("T").Last();
+
+            var begintime = w["begintime"].ToString();
+            var endtime = w["endtime"].ToString();
+            var description = Markdown.ToHtml(w["description"].ToString());
+            var title = Markdown.ToHtml(w["title"].ToString());
+            var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString());
+            var bTime = ExtractTime(begintime);
+            var eTime = ExtractTime(endtime);
+            var timeString = $"{bTime} - {eTime}";
+
+            responseBuilder.Append($@"\n<h3>{title}</h3>\n<p class=subtitle'>{timeString}<br/>\n{targetAudience}</p>\n<p>{description}</p>");
         }
     }
 }

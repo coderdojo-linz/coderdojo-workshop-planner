@@ -9,6 +9,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -63,7 +64,7 @@ namespace CDWPlaner.Tests
         }
 
         [Fact]
-        public async Task MultipleCommitSingleYaml()
+        public async Task MultipleCommitsMultipleYamls()
         {
             var githubWebhookRequestJson = @"
             {
@@ -91,11 +92,11 @@ namespace CDWPlaner.Tests
               ]
             }";
 
-            var operation = new List<WorkshopOperation>();
+            var operations = new List<WorkshopOperation>();
             using var githubWebhookRequest = new MockHttpRequest(githubWebhookRequestJson);
             var collector = new Mock<ICollector<WorkshopOperation>>();
             collector.Setup(c => c.Add(It.IsAny<WorkshopOperation>()))
-                .Callback<WorkshopOperation>(wo => operation.Add(wo))
+                .Callback<WorkshopOperation>(wo => operations.Add(wo))
                 .Verifiable();
 
             var logger = Mock.Of<ILogger>();
@@ -109,17 +110,17 @@ namespace CDWPlaner.Tests
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
-            collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()));
-            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()));
-            Assert.NotNull(operation);
-            Assert.Equal("PLAN.yml", operation[0].FolderInfo.File); 
-            Assert.Equal("2020-07-17", operation[0].FolderInfo.DateFolder);
-            Assert.Equal("2020-07-17/PLAN.yml", operation[0].FolderInfo.FullFolder);
-            Assert.Equal("modified", operation[0].Operation);
-            Assert.Equal("PLAN.yml", operation[1].FolderInfo.File);
-            Assert.Equal("2020-07-18", operation[1].FolderInfo.DateFolder);
-            Assert.Equal("2020-07-18/PLAN.yml", operation[1].FolderInfo.FullFolder);
-            Assert.Equal("added", operation[1].Operation);
+            collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()), Times.Exactly(2));
+            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Exactly(2));
+            Assert.Equal(2, operations.Count);
+            Assert.Equal("PLAN.yml", operations[0].FolderInfo.File);
+            Assert.Equal("2020-07-17", operations[0].FolderInfo.DateFolder);
+            Assert.Equal("2020-07-17/PLAN.yml", operations[0].FolderInfo.FullFolder);
+            Assert.Equal("modified", operations[0].Operation);
+            Assert.Equal("PLAN.yml", operations[1].FolderInfo.File);
+            Assert.Equal("2020-07-18", operations[1].FolderInfo.DateFolder);
+            Assert.Equal("2020-07-18/PLAN.yml", operations[1].FolderInfo.FullFolder);
+            Assert.Equal("added", operations[1].Operation);
         }
 
         [Fact]
@@ -143,6 +144,23 @@ namespace CDWPlaner.Tests
             builtEvent["location"] = "CoderDojo Online";
             Assert.True(new BsonArray().Count == 0 || new BsonArray() == null);
             builtEvent["location"] += " - Themen werden noch bekannt gegeben";
+        }
+
+        [Fact]
+        public void AddWorkshopHtmlTest()
+        {
+            var ws = BsonValue.Create(new
+            {
+                begintime = new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc),
+                endtime = new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc),
+            });
+
+            var builder = new StringBuilder();
+            PlanEvent.AddWorkshopHtml(builder, ws);
+
+            Assert.Equal(
+                "\n<h3>Foo</h3>\n<p>...",
+                builder.ToString());
         }
     }
 }
