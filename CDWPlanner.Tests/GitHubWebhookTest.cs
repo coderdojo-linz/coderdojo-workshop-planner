@@ -63,6 +63,66 @@ namespace CDWPlaner.Tests
         }
 
         [Fact]
+        public async Task MultipleCommitSingleYaml()
+        {
+            var githubWebhookRequestJson = @"
+            {
+              ""commits"": [
+                {
+                  ""id"": ""13c178b8ebe91815e59d44aec2f593570d5d00e3"",
+                  ""added"": [
+                  ],
+                  ""removed"": [
+                  ],
+                  ""modified"": [
+                    ""2020-07-17/PLAN.yml""
+                  ]
+                },
+                {
+                  ""id"": ""13c178b8ebe91815e59d44aec2f593570d5d00f3"",
+                  ""added"": [
+                    ""2020-07-18/PLAN.yml""
+                  ],
+                  ""removed"": [
+                  ],
+                  ""modified"": [
+                  ]
+                }
+              ]
+            }";
+
+            var operation = new List<WorkshopOperation>();
+            using var githubWebhookRequest = new MockHttpRequest(githubWebhookRequestJson);
+            var collector = new Mock<ICollector<WorkshopOperation>>();
+            collector.Setup(c => c.Add(It.IsAny<WorkshopOperation>()))
+                .Callback<WorkshopOperation>(wo => operation.Add(wo))
+                .Verifiable();
+
+            var logger = Mock.Of<ILogger>();
+
+            var fileReader = new Mock<IGitHubFileReader>();
+            fileReader.Setup(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
+                .Returns(Task.FromResult(new WorkshopsRoot()))
+                .Verifiable();
+
+            var planEvent = new PlanEvent(fileReader.Object, null);
+            var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
+
+            Assert.IsType<AcceptedResult>(result);
+            collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()));
+            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()));
+            Assert.NotNull(operation);
+            Assert.Equal("PLAN.yml", operation[0].FolderInfo.File); 
+            Assert.Equal("2020-07-17", operation[0].FolderInfo.DateFolder);
+            Assert.Equal("2020-07-17/PLAN.yml", operation[0].FolderInfo.FullFolder);
+            Assert.Equal("modified", operation[0].Operation);
+            Assert.Equal("PLAN.yml", operation[1].FolderInfo.File);
+            Assert.Equal("2020-07-18", operation[1].FolderInfo.DateFolder);
+            Assert.Equal("2020-07-18/PLAN.yml", operation[1].FolderInfo.FullFolder);
+            Assert.Equal("added", operation[1].Operation);
+        }
+
+        [Fact]
         public void BuildEventDocument()
         {
             var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
