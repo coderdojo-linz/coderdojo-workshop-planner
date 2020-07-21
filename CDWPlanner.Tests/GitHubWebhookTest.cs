@@ -1,4 +1,3 @@
-using CDWPlaner;
 using CDWPlaner.DTO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -6,11 +5,8 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Moq;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -165,7 +161,7 @@ namespace CDWPlaner.Tests
 
             var debugString = "<h3>Foo</h3><p class='subtitle'>13:00 - 14:00<br/>FooBar</p><p><em>Bar</em></p>";
 
-            Debug.WriteLine(builder.ToString()); 
+            Debug.WriteLine(builder.ToString());
             Assert.Contains(
                 debugString,
                 builder.ToString());

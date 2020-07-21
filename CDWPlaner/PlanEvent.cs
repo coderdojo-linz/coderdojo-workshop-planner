@@ -17,7 +17,6 @@ using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlaner.DTO;
 using Markdig;
 using System.Text;
-using Microsoft.Azure.Amqp.Framing;
 
 namespace CDWPlaner
 {
@@ -118,6 +117,7 @@ namespace CDWPlaner
             log.LogInformation("Successfully written data to db");
         }
 
+        // Build the data for the database
         internal static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
         {
             var eventData = new BsonDocument();
@@ -135,6 +135,7 @@ namespace CDWPlaner
             return eventData;
         }
 
+        // Get the workshop body array
         [FunctionName("GetDBContent")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
@@ -163,6 +164,7 @@ namespace CDWPlaner
             return new OkObjectResult(responseMessage);
         }
 
+        // Build the html string
         internal static void AddWorkshopHtml(StringBuilder responseBuilder, BsonValue w)
         {
             static string ExtractTime(string begintime) => begintime.Replace(":00Z", string.Empty).Split("T").Last();
