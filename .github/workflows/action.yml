@@ -4,8 +4,8 @@ on:
   [push]
 
 env:
-  AZURE_FUNCTIONAPP_NAME: cdw-planner
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: './cdw-planner'
+  AZURE_FUNCTIONAPP_NAME: CDWPlanner
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './CDWPlanner'
   DOTNET_VERSION: '3.1.301'
 
 jobs:
