@@ -7,6 +7,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -165,6 +166,57 @@ namespace CDWPlanner.Tests
             Assert.Contains(
                 debugString,
                 builder.ToString());
+        }
+
+        [Fact]
+        public void YamlToWorkshopsTest()
+        {
+            var workshop = @"workshops:
+- begintime: '2020-07-24T13:45:00'
+  endtime: '2020-07-24T15:45:00'
+  draft: false
+  title: 'Virtuelles Elektronikbasteln mit Raspberry Pi'
+  targetAudience: 'ab 8'
+  description: >-
+    Test
+  prerequisites: >-
+    TestTest
+  mentors:
+    - Günther
+  zoom: 'linklink'
+- begintime: '2020-07-24T00:00:00'
+  endtime: '2020-07-24T00:00:00'
+  draft: false
+  title: 'Ein Spiel mit Python'
+  targetAudience: '8'
+  description: >-
+     testdes
+  prerequisites: >-
+     Aktuelle Version von Python
+  mentors:
+    - Sonja
+  zoom: 'link'";
+            
+            var getContent = GitHubFileReader.YamlToWorkshops(workshop);
+
+            Assert.Equal(new DateTime(2020, 07, 24, 13, 45, 0, DateTimeKind.Utc), getContent.workshops[0].begintime);
+            Assert.Equal(new DateTime(2020, 07, 24, 15, 45, 0, DateTimeKind.Utc), getContent.workshops[0].endtime);
+            Assert.Equal("false", getContent.workshops[0].draft.ToString().ToLower());
+            Assert.Equal("Virtuelles Elektronikbasteln mit Raspberry Pi", getContent.workshops[0].title.ToString());
+            Assert.Equal("ab 8", getContent.workshops[0].targetAudience.ToString());
+            Assert.Equal("Test", getContent.workshops[0].description.ToString());
+            Assert.Equal("TestTest", getContent.workshops[0].prerequisites.ToString());
+            Assert.Equal("Günther", getContent.workshops[0].mentors[0].ToString());
+            Assert.Equal("linklink", getContent.workshops[0].zoom.ToString());
+            Assert.Equal(new DateTime(2020, 07, 24, 0, 0, 0, DateTimeKind.Utc), getContent.workshops[1].begintime);
+            Assert.Equal(new DateTime(2020, 07, 24, 0, 0, 0, DateTimeKind.Utc), getContent.workshops[1].endtime);
+            Assert.Equal("false", getContent.workshops[0].draft.ToString().ToLower());
+            Assert.Equal("Ein Spiel mit Python", getContent.workshops[1].title.ToString());
+            Assert.Equal("8", getContent.workshops[1].targetAudience.ToString());
+            Assert.Equal("testdes", getContent.workshops[1].description.ToString());
+            Assert.Equal("Aktuelle Version von Python", getContent.workshops[1].prerequisites.ToString());
+            Assert.Equal("Sonja", getContent.workshops[1].mentors[0].ToString());
+            Assert.Equal("link", getContent.workshops[1].zoom.ToString());
         }
     }
 }
