@@ -97,7 +97,7 @@ namespace CDWPlanner
             var workshopData = new BsonArray();
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
             {
-                workshopData.Add(w);
+                workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
             var eventData = BuildEventDocument(parsedDateEvent, workshopData);

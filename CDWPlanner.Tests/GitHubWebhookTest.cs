@@ -172,10 +172,10 @@ namespace CDWPlanner.Tests
         public void YamlToWorkshopsTest()
         {
             var workshop = @"workshops:
-- begintime: '2020-07-24T13:45:00'
-  endtime: '2020-07-24T15:45:00'
+- begintime: '13:45'
+  endtime: '15:45'
   draft: false
-  title: 'Virtuelles Elektronikbasteln mit Raspberry Pi'
+  title: Virtuelles Elektronikbasteln mit Raspberry Pi
   targetAudience: 'ab 8'
   description: >-
     Test
@@ -184,8 +184,8 @@ namespace CDWPlanner.Tests
   mentors:
     - Günther
   zoom: 'linklink'
-- begintime: '2020-07-24T00:00:00'
-  endtime: '2020-07-24T00:00:00'
+- begintime: '12:00'
+  endtime: '13:00'
   draft: false
   title: 'Ein Spiel mit Python'
   targetAudience: '8'
@@ -199,24 +199,24 @@ namespace CDWPlanner.Tests
             
             var getContent = GitHubFileReader.YamlToWorkshops(workshop);
 
-            Assert.Equal(new DateTime(2020, 07, 24, 13, 45, 0, DateTimeKind.Utc), getContent.workshops[0].begintime);
-            Assert.Equal(new DateTime(2020, 07, 24, 15, 45, 0, DateTimeKind.Utc), getContent.workshops[0].endtime);
+            Assert.Equal("13:45", getContent.workshops[0].begintime);
+            Assert.Equal("15:45", getContent.workshops[0].endtime);
             Assert.Equal("false", getContent.workshops[0].draft.ToString().ToLower());
-            Assert.Equal("Virtuelles Elektronikbasteln mit Raspberry Pi", getContent.workshops[0].title.ToString());
-            Assert.Equal("ab 8", getContent.workshops[0].targetAudience.ToString());
-            Assert.Equal("Test", getContent.workshops[0].description.ToString());
-            Assert.Equal("TestTest", getContent.workshops[0].prerequisites.ToString());
-            Assert.Equal("Günther", getContent.workshops[0].mentors[0].ToString());
-            Assert.Equal("linklink", getContent.workshops[0].zoom.ToString());
-            Assert.Equal(new DateTime(2020, 07, 24, 0, 0, 0, DateTimeKind.Utc), getContent.workshops[1].begintime);
-            Assert.Equal(new DateTime(2020, 07, 24, 0, 0, 0, DateTimeKind.Utc), getContent.workshops[1].endtime);
+            Assert.Equal("Virtuelles Elektronikbasteln mit Raspberry Pi", getContent.workshops[0].title);
+            Assert.Equal("ab 8", getContent.workshops[0].targetAudience);
+            Assert.Equal("Test", getContent.workshops[0].description);
+            Assert.Equal("TestTest", getContent.workshops[0].prerequisites);
+            Assert.Equal("Günther", getContent.workshops[0].mentors[0]);
+            Assert.Equal("linklink", getContent.workshops[0].zoom);
+            Assert.Equal("12:00", getContent.workshops[1].begintime);
+            Assert.Equal("13:00", getContent.workshops[1].endtime);
             Assert.Equal("false", getContent.workshops[0].draft.ToString().ToLower());
-            Assert.Equal("Ein Spiel mit Python", getContent.workshops[1].title.ToString());
-            Assert.Equal("8", getContent.workshops[1].targetAudience.ToString());
-            Assert.Equal("testdes", getContent.workshops[1].description.ToString());
-            Assert.Equal("Aktuelle Version von Python", getContent.workshops[1].prerequisites.ToString());
-            Assert.Equal("Sonja", getContent.workshops[1].mentors[0].ToString());
-            Assert.Equal("link", getContent.workshops[1].zoom.ToString());
+            Assert.Equal("Ein Spiel mit Python", getContent.workshops[1].title);
+            Assert.Equal("8", getContent.workshops[1].targetAudience);
+            Assert.Equal("testdes", getContent.workshops[1].description);
+            Assert.Equal("Aktuelle Version von Python", getContent.workshops[1].prerequisites);
+            Assert.Equal("Sonja", getContent.workshops[1].mentors[0]);
+            Assert.Equal("link", getContent.workshops[1].zoom);
         }
     }
 }

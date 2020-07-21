@@ -34,8 +34,8 @@ namespace CDWPlanner.Tests
               ""Workshops"": {
                 ""workshops"": [
                   {
-                    ""begintime"": ""2020-07-17T13:45:00"",
-                    ""endtime"": ""2020-07-17T15:45:00"",
+                    ""begintime"": ""13:45"",
+                    ""endtime"": ""15:45"",
                     ""draft"": false,
                     ""title"": ""Test"",
                     ""targetAudience"": ""TestAudience"",
@@ -58,8 +58,8 @@ namespace CDWPlanner.Tests
         public void ConvertWorkshopToBson()
         {
             var workshop = new Workshop {
-                begintime = new DateTime(2020, 7, 17, 13, 45, 0, 0, DateTimeKind.Utc),
-                endtime = new DateTime(2020, 7, 17, 15, 45, 0, 0, DateTimeKind.Utc),
+                begintime = "13:45",
+                endtime = "15:45",
                 description = "TestDescription *with* markup",
                 mentors = new List<string>() { "Foo", "Bar" },
                 prerequisites = "TestPrerequisites",
@@ -68,10 +68,10 @@ namespace CDWPlanner.Tests
                 zoom = "https://us02web.zoom.us/..."
             };
 
-            var bsonDocument = (BsonDocument)workshop;
+            var bsonDocument = workshop.ToBsonDocument(new DateTime(2010, 1, 1));
 
-            Assert.Equal(new BsonDateTime(workshop.begintime), bsonDocument["begintime"]);
-            Assert.Equal(new BsonDateTime(workshop.endtime), bsonDocument["endtime"]);
+            Assert.Equal(new DateTime(2010, 1, 1, 13, 45, 0, DateTimeKind.Utc), bsonDocument["begintime"]);
+            Assert.Equal(new DateTime(2010, 1, 1, 15, 45, 0, DateTimeKind.Utc), bsonDocument["endtime"]);
             Assert.Equal(workshop.description, bsonDocument["description"]);
             Assert.Equal(new BsonArray(workshop.mentors), bsonDocument["mentors"]);
             Assert.Equal(workshop.prerequisites, bsonDocument["prerequisites"]);

@@ -45,8 +45,8 @@ namespace CDWPlanner.DTO
 
     public class Workshop
     {
-        public DateTime begintime { get; set; }
-        public DateTime endtime { get; set; }
+        public string begintime { get; set; }
+        public string endtime { get; set; }
         public bool draft { get; set; }
         public string title { get; set; }
         public string targetAudience { get; set; }
@@ -55,16 +55,16 @@ namespace CDWPlanner.DTO
         public List<string> mentors { get; set; }
         public string zoom { get; set; }
 
-        public static implicit operator BsonDocument(Workshop ws) =>
+        public BsonDocument ToBsonDocument(DateTime baseDate) =>
             new BsonDocument {
-                { "begintime" , ws.begintime},
-                { "endtime" , ws.endtime},
-                { "title" , ws.title},
-                { "targetAudience" , ws.targetAudience},
-                { "description" , ws.description},
-                { "prerequisites" , ws.prerequisites},
-                { "mentors", new BsonArray(ws.mentors)},
-                { "zoom" , ws.zoom }
+                { "begintime" , DateTime.SpecifyKind(baseDate.Add(TimeSpan.Parse(begintime)), DateTimeKind.Utc) },
+                { "endtime" , DateTime.SpecifyKind(baseDate.Add(TimeSpan.Parse(endtime)), DateTimeKind.Utc) },
+                { "title" , title},
+                { "targetAudience" , targetAudience},
+                { "description" , description},
+                { "prerequisites" , prerequisites},
+                { "mentors", new BsonArray(mentors)},
+                { "zoom" , zoom }
             };
     }
     public class WorkshopsRoot
