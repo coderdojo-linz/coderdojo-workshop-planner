@@ -34,7 +34,7 @@ namespace CDWPlanner
         [FunctionName("PlanEvent")]
         public async Task<IActionResult> ReceiveFromGitHub(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            [ServiceBus("workshopupdate", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
+            [ServiceBus("workshopupdate-test", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -79,7 +79,7 @@ namespace CDWPlanner
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
         public async Task Receive(
-            [ServiceBusTrigger("workshopupdate", "transfer-to-db", Connection = "ServiceBusConnection")] string workshopJson,
+            [ServiceBusTrigger("workshopupdate-test", "transfer-to-db-test", Connection = "ServiceBusConnection")] string workshopJson,
             ILogger log)
         {
             // Now it's JSON
