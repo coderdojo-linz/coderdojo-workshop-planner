@@ -1,5 +1,5 @@
 ## CoderDojo Workshop Planer
-
+![Deploy CDW-Planner to Azure Function App](https://github.com/coderdojo-linz/coderdojo-workshop-planner/workflows/Deploy%20CDW-Planner%20to%20Azure%20Function%20App/badge.svg)
 ### How to construct a correct workshop plan
 #### Create a Folder
 + Folder format must be `YYYY-MM-DD` like `2020-07-16`
