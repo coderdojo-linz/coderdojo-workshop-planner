@@ -1,4 +1,4 @@
-using CDWPlaner.DTO;
+using CDWPlanner.DTO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace CDWPlaner.Tests
+namespace CDWPlanner.Tests
 {
     public class GitHubWebhookTest
     {

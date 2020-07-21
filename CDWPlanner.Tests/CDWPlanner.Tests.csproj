@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CDWPlaner\CDWPlaner.csproj" />
+    <ProjectReference Include="..\CDWPlanner\CDWPlanner.csproj" />
   </ItemGroup>
 
 </Project>

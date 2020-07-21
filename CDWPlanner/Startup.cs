@@ -2,10 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.CompilerServices;
 
-[assembly: FunctionsStartup(typeof(CDWPlaner.Startup))]
-[assembly: InternalsVisibleTo("CDWPlaner.Tests")]
+[assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
+[assembly: InternalsVisibleTo("CDWPlanner.Tests")]
 
-namespace CDWPlaner
+namespace CDWPlanner
 {
     class Startup : FunctionsStartup
     {

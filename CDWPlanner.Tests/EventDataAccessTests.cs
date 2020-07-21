@@ -1,5 +1,5 @@
-﻿using CDWPlaner;
-using CDWPlaner.DTO;
+﻿using CDWPlanner;
+using CDWPlanner.DTO;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Moq;
@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace CDWPlaner.Tests
+namespace CDWPlanner.Tests
 {
     public class EventDataAccessTests
     {

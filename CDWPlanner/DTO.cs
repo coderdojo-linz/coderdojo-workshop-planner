@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CDWPlaner.DTO
+namespace CDWPlanner.DTO
 {
     public class CommitObject
     {

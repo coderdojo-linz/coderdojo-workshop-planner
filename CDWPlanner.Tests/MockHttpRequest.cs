@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 
-namespace CDWPlaner.Tests
+namespace CDWPlanner.Tests
 {
     internal class MockHttpRequest : IDisposable
     {

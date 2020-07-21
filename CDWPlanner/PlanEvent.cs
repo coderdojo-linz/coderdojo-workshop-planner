@@ -14,11 +14,11 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
-using CDWPlaner.DTO;
+using CDWPlanner.DTO;
 using Markdig;
 using System.Text;
 
-namespace CDWPlaner
+namespace CDWPlanner
 {
     public class PlanEvent
     {
