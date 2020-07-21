@@ -176,7 +176,7 @@ namespace CDWPlaner
             var eTime = ExtractTime(endtime);
             var timeString = $"{bTime} - {eTime}";
 
-            responseBuilder.Append($@"\n<h3>{title}</h3>\n<p class='subtitle'>{timeString}<br/>\n{targetAudience}</p>\n<p>{description}</p>");
+            responseBuilder.Append($@"<h3>{title}</h3><p class='subtitle'>{timeString}<br/>{targetAudience}</p><p>{description}</p>");
         }
     }
 }

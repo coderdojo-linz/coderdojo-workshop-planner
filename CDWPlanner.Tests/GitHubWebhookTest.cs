@@ -163,10 +163,10 @@ namespace CDWPlaner.Tests
             var builder = new StringBuilder();
             PlanEvent.AddWorkshopHtml(builder, ws);
 
-            var debugString = "\n<h3>Foo</h3>\n<p class='subtitle'>13:00 - 14:00<br/>\nFooBar</p>\n<p><em>Bar</em></p>";
+            var debugString = "<h3>Foo</h3><p class='subtitle'>13:00 - 14:00<br/>FooBar</p><p><em>Bar</em></p>";
 
-            Debug.WriteLine(builder.ToString()[^1..^1]); 
-            Assert.Equal(
+            Debug.WriteLine(builder.ToString()); 
+            Assert.Contains(
                 debugString,
                 builder.ToString());
         }
