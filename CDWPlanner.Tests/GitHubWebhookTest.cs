@@ -150,8 +150,8 @@ namespace CDWPlanner.Tests
             var ws = new BsonDocument();
             ws.AddRange(new Dictionary<string, object>
             {
-                { "begintime", new DateTime(2020, 1, 1, 13, 0, 0, DateTimeKind.Utc)},
-                { "endtime", new DateTime(2020, 1, 1, 14, 0, 0, DateTimeKind.Utc) },
+                { "begintime", new DateTime(2020, 1, 1, 13, 0, 0)},
+                { "endtime", new DateTime(2020, 1, 1, 14, 0, 0)},
                 { "description", "*Bar*" },
                 { "title", "Foo" },
                 { "targetAudience", "FooBar" },

@@ -57,8 +57,8 @@ namespace CDWPlanner.DTO
 
         public BsonDocument ToBsonDocument(DateTime baseDate) =>
             new BsonDocument {
-                { "begintime" , DateTime.SpecifyKind(baseDate.Add(TimeSpan.Parse(begintime)), DateTimeKind.Utc) },
-                { "endtime" , DateTime.SpecifyKind(baseDate.Add(TimeSpan.Parse(endtime)), DateTimeKind.Utc)},
+                { "begintime" ,baseDate.Add(TimeSpan.Parse(begintime)).ToString("o") },
+                { "endtime" , baseDate.Add(TimeSpan.Parse(endtime)).ToString("o")},
                 { "title" , title},
                 { "targetAudience" , targetAudience},
                 { "description" , description},

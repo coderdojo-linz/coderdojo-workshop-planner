@@ -89,7 +89,7 @@ namespace CDWPlanner
             // modified or added
             var operation = workshopOperation?.Operation;
 
-            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
+            var parsedDateEvent = DateTime.Parse(dateFolder);
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
             var found = dbEventsFound != null;
 
@@ -143,7 +143,7 @@ namespace CDWPlanner
         {
             var date = req.Query["date"];
 
-            var parsedDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
+            var parsedDateEvent = DateTime.Parse(date);
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
 
             var workshops = dbEventsFound.GetElement("workshops");
