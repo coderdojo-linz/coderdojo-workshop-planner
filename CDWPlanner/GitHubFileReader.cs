@@ -42,7 +42,11 @@ namespace CDWPlanner
             using var getResponse = await client.SendAsync(webGetRequest);
             var getContent = getResponse.Content;
             var getYmlContent = getContent.ReadAsStringAsync().Result;
+            return YamlToWorkshops(getYmlContent);
+        }
 
+        internal static WorkshopsRoot YamlToWorkshops(string getYmlContent)
+        {
             var ymlContent = new StringReader(getYmlContent);
 
             var deserializer = new DeserializerBuilder().Build();
