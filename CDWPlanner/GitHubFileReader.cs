@@ -1,11 +1,8 @@
 ﻿using CDWPlanner.DTO;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 
@@ -28,7 +25,9 @@ namespace CDWPlanner
         // GET request to GitHub to get the YML file data with specific URL
         public async Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, string commitId)
         {
-            var url = $"https://raw.githubusercontent.com/UndeMe/CDWPlanner/{commitId}/{info.FullFolder}";
+            var githubUser = Environment.GetEnvironmentVariable("GITHUBUSER", EnvironmentVariableTarget.Process);
+
+            var url = $"https://raw.githubusercontent.com/{githubUser}/{commitId}/{info.FullFolder}";
 
             var webGetRequest = new HttpRequestMessage
             {
