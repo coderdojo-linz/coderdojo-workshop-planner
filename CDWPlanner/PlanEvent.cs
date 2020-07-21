@@ -34,7 +34,7 @@ namespace CDWPlanner
         [FunctionName("PlanEvent")]
         public async Task<IActionResult> ReceiveFromGitHub(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            [ServiceBus("workshopupdate-test", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
+            [ServiceBus("workshopupdate", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -79,7 +79,7 @@ namespace CDWPlanner
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
         public async Task Receive(
-            [ServiceBusTrigger("workshopupdate-test", "transfer-to-db-test", Connection = "ServiceBusConnection")] string workshopJson,
+            [ServiceBusTrigger("workshopupdate", "transfer-to-db", Connection = "ServiceBusConnection")] string workshopJson,
             ILogger log)
         {
             // Now it's JSON
@@ -90,7 +90,8 @@ namespace CDWPlanner
             var operation = workshopOperation?.Operation;
 
             var parsedDateEvent = DateTime.Parse(dateFolder);
-            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedDateEvent);
+            var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
+            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
             var found = dbEventsFound != null;
 
             // Get workshops and write it into an array only if draft flag is false
@@ -100,7 +101,7 @@ namespace CDWPlanner
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
-            var eventData = BuildEventDocument(parsedDateEvent, workshopData);
+            var eventData = BuildEventDocument(parsedUtcDateEvent, workshopData);
 
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
@@ -108,10 +109,9 @@ namespace CDWPlanner
                 await dataAccess.InsertIntoDBAsync(eventData);
                 found = true;
             }
-
-            if (operation == "modified" || found == true)
+            else if (operation == "modified" || found == true)
             {
-                await dataAccess.ReplaceDataOfDBAsync(parsedDateEvent, eventData);
+                await dataAccess.ReplaceDataOfDBAsync(parsedUtcDateEvent, eventData);
             }
 
             log.LogInformation("Successfully written data to db");
@@ -167,7 +167,7 @@ namespace CDWPlanner
         // Build the html string
         internal static void AddWorkshopHtml(StringBuilder responseBuilder, BsonValue w)
         {
-            static string ExtractTime(string begintime) => begintime.Replace(":00Z", string.Empty).Split("T").Last();
+            static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
 
             var begintime = w["begintime"].ToString();
             var endtime = w["endtime"].ToString();

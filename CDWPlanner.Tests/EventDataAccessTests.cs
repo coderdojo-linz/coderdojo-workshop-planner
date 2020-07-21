@@ -69,8 +69,8 @@ namespace CDWPlanner.Tests
 
             var bsonDocument = workshop.ToBsonDocument(new DateTime(2010, 1, 1));
 
-            Assert.Equal(new DateTime(2010, 1, 1, 13, 45, 0), bsonDocument["begintime"]);
-            Assert.Equal(new DateTime(2010, 1, 1, 15, 45, 0), bsonDocument["endtime"]);
+            Assert.Equal(new DateTime(2010, 1, 1, 13, 45, 0).ToString("o"), bsonDocument["begintime"]);
+            Assert.Equal(new DateTime(2010, 1, 1, 15, 45, 0).ToString("o"), bsonDocument["endtime"]);
             Assert.Equal(workshop.description, bsonDocument["description"]);
             Assert.Equal(new BsonArray(workshop.mentors), bsonDocument["mentors"]);
             Assert.Equal(workshop.prerequisites, bsonDocument["prerequisites"]);
