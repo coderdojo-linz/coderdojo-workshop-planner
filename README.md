@@ -50,6 +50,6 @@ These following parameter are needed to be created in the Azure function
 |`MONGODB`|The database name e.g. `member-management-test`|
 |`MONGOCONNECTION`|The collection name e.g. `events`|
 |`MONGOCOLLECTION`|A connection string, more details: https://docs.mlab.com/connecting/#connect-string|
-|`ServiceBusConnection`||
+|`ServiceBusConnection`|Your have to create a Service-Bus-Connection to communicate with certain functions, more details: https://docs.tibco.com/pub/flogo-azservicebus/1.0.0/doc/html/GUID-04B0556E-B623-492E-9531-1A6ECA64284F.html|
 
 
