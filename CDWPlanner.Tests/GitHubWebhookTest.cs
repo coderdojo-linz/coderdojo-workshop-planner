@@ -7,7 +7,6 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -196,7 +195,7 @@ namespace CDWPlanner.Tests
   mentors:
     - Sonja
   zoom: 'link'";
-            
+
             var getContent = GitHubFileReader.YamlToWorkshops(workshop);
 
             Assert.Equal("13:45", getContent.workshops[0].begintime);

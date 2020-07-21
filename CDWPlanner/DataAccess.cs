@@ -11,7 +11,6 @@ namespace CDWPlanner
         Task<BsonDocument> ReadWorkshopForDateAsync(DateTime date);
         Task InsertIntoDBAsync(BsonDocument eventData);
         Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData);
-
     };
 
     public class DataAccess : IDataAccess

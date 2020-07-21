@@ -1,5 +1,4 @@
-﻿using CDWPlanner;
-using CDWPlanner.DTO;
+﻿using CDWPlanner.DTO;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Moq;
