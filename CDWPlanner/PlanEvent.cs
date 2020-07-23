@@ -105,6 +105,7 @@ namespace CDWPlanner
 
             // Read all existing meetings in an in-memory buffer.
             var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
+            var users = await planZoomMeeting.GetUsersAsync();
 
             // Helper variable for calculating user name.
             // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
@@ -123,6 +124,9 @@ namespace CDWPlanner
                 {
                     log.LogInformation("Updating Meeting");
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
+                    w.zoom = existingMeeting.join_url;
+                    var correctUser = planZoomMeeting.GetUserEmail(users, existingMeeting.host_id);
+                    w.zoomUser = correctUser.email;
                 }
                 else
                 {
