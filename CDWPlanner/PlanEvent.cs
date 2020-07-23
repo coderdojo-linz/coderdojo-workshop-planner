@@ -125,7 +125,7 @@ namespace CDWPlanner
                     log.LogInformation("Updating Meeting");
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
                     w.zoom = existingMeeting.join_url;
-                    var correctUser = planZoomMeeting.GetUserEmail(users, existingMeeting.host_id);
+                    var correctUser = planZoomMeeting.GetUserByHostId(users, existingMeeting.host_id);
                     w.zoomUser = correctUser.email;
                 }
                 else
