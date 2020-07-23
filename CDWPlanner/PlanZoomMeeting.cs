@@ -109,7 +109,7 @@ namespace CDWPlanner
                     timezone = $"Europe/Vienna",
                     password = randomPsw,
                     agenda = $"{description}\n\nShortcode: {shortCode}",
-                    settings = new {host_video = "true", participant_video = "true", join_before_host = "true"}
+                    settings = new {host_video = "true", participant_video = "true", audio = "voip", join_before_host = "true"}
                 }), Encoding.UTF8, "application/json");
 
         private string CreateRandomPassword(int length)
