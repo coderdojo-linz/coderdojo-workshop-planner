@@ -157,7 +157,7 @@ namespace CDWPlanner
                 AddWorkshopHtml(responseBuilder, w);
             }
 
-            responseBuilder.Append(@"</td></tr></tbody></table></section>");
+            responseBuilder.Append(@"</td><td>&nbsp;</td></tr></tbody></table></section>");
 
             var responseMessage = responseBuilder.ToString();
 
