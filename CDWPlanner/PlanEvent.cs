@@ -104,7 +104,7 @@ namespace CDWPlanner
             var workshopData = new BsonArray();
 
             // Read all existing meetings in an in-memory buffer.
-            var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingBufferAsync();
+            var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
 
             // Helper variable for calculating user name.
             // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
@@ -116,7 +116,7 @@ namespace CDWPlanner
                 userNum++;
 
                 // Find meeting in meeting buffer
-                var existingMeeting = planZoomMeeting.GetExistingMeetingAsync(w.shortCode, existingMeetingBuffer);
+                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode);
 
                 // Create or update meeting
                 if (existingMeeting != null)
