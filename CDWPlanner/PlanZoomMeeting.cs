@@ -78,20 +78,6 @@ namespace CDWPlanner
             getResponse.EnsureSuccessStatusCode();
         }
 
-        private static StringContent CreateStringContentForMeeting(string description, string shortCode, string title, string userId, string startTime, string randomPsw) =>
-            new StringContent(
-                JsonSerializer.Serialize(new
-                {
-                    topic = $"CoderDojo Online: {title}",
-                    type = "2",
-                    start_time = $"{startTime}",
-                    duration = "120",
-                    schedule_for = $"{userId}",
-                    timezone = $"Europe/Vienna",
-                    password = randomPsw,
-                    agenda = $"{description}\n\nShortcode: {shortCode}",
-                }), Encoding.UTF8, "application/json");
-
         public async Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID)
         {
             var zoomUrl = $"users/{userID}/meetings";
@@ -110,6 +96,21 @@ namespace CDWPlanner
             var getJsonContent = getResponse.Content.ReadAsStringAsync().Result;
             return JsonSerializer.Deserialize<Meeting>(getJsonContent);
         }
+
+        private static StringContent CreateStringContentForMeeting(string description, string shortCode, string title, string userId, string startTime, string randomPsw) =>
+            new StringContent(
+                JsonSerializer.Serialize(new
+                {
+                    topic = $"CoderDojo Online: {title}",
+                    type = "2",
+                    start_time = $"{startTime}",
+                    duration = "120",
+                    schedule_for = $"{userId}",
+                    timezone = $"Europe/Vienna",
+                    password = randomPsw,
+                    agenda = $"{description}\n\nShortcode: {shortCode}",
+                    settings = new {host_video = "true", participant_video = "true", join_before_host = "true"}
+                }), Encoding.UTF8, "application/json");
 
         private string CreateRandomPassword(int length)
         {
