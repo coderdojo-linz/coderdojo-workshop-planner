@@ -20,8 +20,13 @@ namespace CDWPlanner.Tests
             BsonDocument insertedDocument = null;
             dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()))
                 .Callback<BsonDocument>(doc => insertedDocument = doc);
+            var planZoomMeetingMock = new Mock<IPlanZoomMeeting>();
+            planZoomMeetingMock.Setup(z => z.CreateZoomMeetingAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
-            var func = new PlanEvent(null, dataAccessMock.Object);
+            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object);
             await func.Receive(@"
             {
               ""Operation"": ""added"",
@@ -41,7 +46,9 @@ namespace CDWPlanner.Tests
                     ""description"": ""TestDescription *with* markup"",
                     ""prerequisites"": ""TestPrerequisites"",
                     ""mentors"": [ ""Foo"", ""Bar"" ],
-                    ""zoom"": ""https://us02web.zoom.us/...""
+                    ""shortCode"": ""Test"",
+                    ""zoomUser"": ""Test"",
+                    ""zoom"": ""Test""
                   }
                 ]
               }
@@ -64,7 +71,8 @@ namespace CDWPlanner.Tests
                 prerequisites = "TestPrerequisites",
                 targetAudience = "TestAudience",
                 title = "Test",
-                zoom = "https://us02web.zoom.us/..."
+                zoomUser = "Test",
+                zoom = "Test"
             };
 
             var bsonDocument = workshop.ToBsonDocument(new DateTime(2010, 1, 1));
@@ -76,6 +84,7 @@ namespace CDWPlanner.Tests
             Assert.Equal(workshop.prerequisites, bsonDocument["prerequisites"]);
             Assert.Equal(workshop.targetAudience, bsonDocument["targetAudience"]);
             Assert.Equal(workshop.title, bsonDocument["title"]);
+            Assert.Equal(workshop.zoomUser, bsonDocument["zoomUser"]);
             Assert.Equal(workshop.zoom, bsonDocument["zoom"]);
         }
     }

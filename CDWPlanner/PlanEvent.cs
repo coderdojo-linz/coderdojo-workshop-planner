@@ -24,11 +24,13 @@ namespace CDWPlanner
     {
         private readonly IGitHubFileReader fileReader;
         private readonly IDataAccess dataAccess;
+        private readonly IPlanZoomMeeting planZoomMeeting;
 
-        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess)
+        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
+            this.planZoomMeeting = planZoomMeeting;
         }
 
         [FunctionName("PlanEvent")]
@@ -67,7 +69,7 @@ namespace CDWPlanner
                 }
                 catch (Exception)
                 {
-                    log.LogInformation("Wrong YML Format, check README.md for right format");
+                    log.LogInformation("Wrong YML Format, check README.md for correct format");
                     return new BadRequestResult();
                 }
             }
@@ -86,21 +88,58 @@ namespace CDWPlanner
             var workshopOperation = JsonSerializer.Deserialize<WorkshopOperation>(workshopJson);
 
             var dateFolder = workshopOperation?.FolderInfo?.DateFolder;
+
             // modified or added
             var operation = workshopOperation?.Operation;
 
+            // Parse as local date and UTC; we need both
             var parsedDateEvent = DateTime.Parse(dateFolder);
             var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
+
+            // Read event data (including workshops) from database
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
             var found = dbEventsFound != null;
 
             // Get workshops and write it into an array only if draft flag is false
             var workshopData = new BsonArray();
-            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
+
+            // Read all existing meetings in an in-memory buffer.
+            var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
+            var users = await planZoomMeeting.GetUsersAsync();
+
+            // Helper variable for calculating user name.
+            // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
+            var userNum = 0;
+
+            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft).OrderBy(ws => ws.begintime))
             {
+                var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
+                userNum++;
+
+                // Find meeting in meeting buffer
+                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode);
+
+                // Create or update meeting
+                if (existingMeeting != null)
+                {
+                    log.LogInformation("Updating Meeting");
+                    planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
+                    w.zoom = existingMeeting.join_url;
+                    var correctUser = planZoomMeeting.GetUserByHostId(users, existingMeeting.host_id);
+                    w.zoomUser = correctUser.email;
+                }
+                else
+                {
+                    log.LogInformation("Creating Meeting");
+                    var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
+                    w.zoom = getLinkData.join_url;
+                    w.zoomUser = userId;
+                }
+
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
+            // Build object that can be added to DB
             var eventData = BuildEventDocument(parsedUtcDateEvent, workshopData);
 
             // Check wheather a new file exists, create/or modifie it
@@ -128,7 +167,7 @@ namespace CDWPlanner
                 { "workshops", workshopData}
             });
 
-            if(workshopData == null || workshopData.Count == 0)
+            if (workshopData == null || workshopData.Count == 0)
             {
                 eventData["location"] += " - Themen werden noch bekannt gegeben";
             }
@@ -139,7 +178,7 @@ namespace CDWPlanner
         [FunctionName("GetDBContent")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            ILogger log)
+            ILogger _)
         {
             var date = req.Query["date"];
 

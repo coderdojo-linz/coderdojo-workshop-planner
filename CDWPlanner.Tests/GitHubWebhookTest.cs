@@ -48,7 +48,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(fileReader.Object, null);
+            var planEvent = new PlanEvent(fileReader.Object, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
@@ -104,7 +104,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(fileReader.Object, null);
+            var planEvent = new PlanEvent(fileReader.Object, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);

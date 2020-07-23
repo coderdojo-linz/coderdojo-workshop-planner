@@ -1,7 +1,9 @@
 name: Deploy CDW-Planner to Azure Function App
 
 on:
-  [push]
+  push:
+    branches:
+      - master
 
 env:
   AZURE_FUNCTIONAPP_NAME: CDWPlanner

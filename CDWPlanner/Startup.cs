@@ -1,5 +1,7 @@
 ﻿using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Net;
 using System.Runtime.CompilerServices;
 
 [assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
@@ -11,8 +13,27 @@ namespace CDWPlanner
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddHttpClient();
+            var githubUser = Environment.GetEnvironmentVariable("GITHUBUSER", EnvironmentVariableTarget.Process);
+            builder.Services.AddHttpClient("github", c =>
+            {
+                c.BaseAddress = new Uri($"https://raw.githubusercontent.com/{githubUser}/");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
+                c.DefaultRequestHeaders.Add("Timeout", "1000000000");
+            });
+
+            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
+            builder.Services.AddHttpClient("zoom", c =>
+            {
+                c.BaseAddress = new Uri("https://api.zoom.us/v2/");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
+                c.DefaultRequestHeaders.Add("Timeout", "1000000000");
+            });
+
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
+            builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
         }
     }
