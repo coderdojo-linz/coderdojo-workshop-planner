@@ -49,37 +49,14 @@ namespace CDWPlanner
             existingMeetingBuffer.FirstOrDefault(meeting =>
                 meeting.agenda.Contains($"Shortcode: {shortCode}") && meeting.topic.StartsWith("CoderDojo Online: "));
 
-        public async void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date)
-        {
-            var meetingId = meeting.id;
-            var zoomUrl = $"meetings/{meetingId}";
-            var startTime = $"{date}T{time}:00Z";
-
-            var meetingRequest = new HttpRequestMessage
-            {
-                RequestUri = new Uri(zoomUrl),
-                Method = HttpMethod.Patch,
-                Headers = { { "meetingId", $"{meetingId}" } },
-                Content = new StringContent(
-                    JsonSerializer.Serialize(new
-                    {
-                        topic = $"CoderDojo Online: {title}",
-                        start_time = $"{startTime}",
-                        schedule_for = $"{userId}",
-                        agenda = $"{description}\n\nShortcode: {shortCode}",
-                    }), Encoding.UTF8, "application/json")
-            };
-
-            using var getResponse = await client.SendAsync(meetingRequest);
-        }
-
+     
         public async Task<MeetingsRoot> ListMeetingsAsync(string userId)
         {
             var zoomUrl = $"users/{userId}/meetings";
 
             var webGetRequest = new HttpRequestMessage
             {
-                RequestUri = new Uri(zoomUrl),
+                RequestUri = new Uri(zoomUrl, UriKind.Relative),
                 Method = HttpMethod.Get,
                 Headers = {
                     { "type", "scheduled"},
@@ -96,20 +73,13 @@ namespace CDWPlanner
 
         public async Task<Meeting> GetMeetingsAsync(long id)
         {
-            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
-            var zoomUrl = $"https://api.zoom.us/v2/meetings/{id}";
+            var zoomUrl = $"meetings/{id}";
 
             var webGetRequest = new HttpRequestMessage
             {
-                RequestUri = new Uri(zoomUrl),
+                RequestUri = new Uri(zoomUrl, UriKind.Relative),
                 Method = HttpMethod.Get,
-                Headers = {
-                    { "meetingid", $"{id}" },
-                    { HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}" },
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'"},
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000"},
-                },
+                Headers = {{ "meetingid", $"{id}" },},
             };
             using var getResponse = await client.SendAsync(webGetRequest);
 
@@ -119,10 +89,39 @@ namespace CDWPlanner
             return JsonSerializer.Deserialize<Meeting>(getJsonContent);
         }
 
+        public async void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date)
+        {
+            var meetingId = meeting.id;
+            var zoomUrl = $"meetings/{meetingId}";
+            var startTime = $"{date}T{time}:00Z";
+
+            var randomPsw = CreateRandomPassword(10);
+
+            var meetingRequest = new HttpRequestMessage
+            {
+                RequestUri = new Uri(zoomUrl, UriKind.Relative),
+                Method = HttpMethod.Patch,
+                Headers = { { "meetingId", $"{meetingId}" } },
+                Content = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        topic = $"CoderDojo Online: {title}",
+                        type = "2",
+                        start_time = $"{startTime}",
+                        duration = "120",
+                        schedule_for = $"{userId}",
+                        timezone = $"Europe/Vienna",
+                        password = randomPsw,
+                        agenda = $"{description}\n\nShortcode: {shortCode}",
+                    }), Encoding.UTF8, "application/json")
+            };
+
+            using var getResponse = await client.SendAsync(meetingRequest);
+        }
+
         public async Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID)
         {
-            var zoomUrl = $"https://api.zoom.us/v2/users/{userID}/meetings";
-            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
+            var zoomUrl = $"users/{userID}/meetings";
             var startTime = $"{date}T{time}:00";
             var randomPsw = CreateRandomPassword(10);
 
@@ -141,16 +140,9 @@ namespace CDWPlanner
 
             var meetingRequest = new HttpRequestMessage
             {
-                RequestUri = new Uri(zoomUrl),
+                RequestUri = new Uri(zoomUrl, UriKind.Relative),
                 Method = HttpMethod.Post,
-                Headers = {
-
-                    { "userId", $"{userID}" },
-                    { HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}" },
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'" },
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000" },
-                },
+                Headers = { { "userId", $"{userID}" },},
                 Content = new StringContent(stringContent, Encoding.UTF8, "application/json")
             };
 

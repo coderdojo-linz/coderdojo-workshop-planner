@@ -25,13 +25,11 @@ namespace CDWPlanner
         // GET request to GitHub to get the YML file data with specific URL
         public async Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, string commitId)
         {
-            
-
             var url = $"{commitId}/{info.FullFolder}";
 
             var webGetRequest = new HttpRequestMessage
             {
-                RequestUri = new Uri(url),
+                RequestUri = new Uri(url, UriKind.Relative),
                 Method = HttpMethod.Get,
             };
             using var getResponse = await client.SendAsync(webGetRequest);

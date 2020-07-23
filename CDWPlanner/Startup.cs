@@ -16,7 +16,7 @@ namespace CDWPlanner
             var githubUser = Environment.GetEnvironmentVariable("GITHUBUSER", EnvironmentVariableTarget.Process);
             builder.Services.AddHttpClient("github", c =>
             {
-                c.BaseAddress = new Uri("https://raw.githubusercontent.com/{githubUser}/");
+                c.BaseAddress = new Uri($"https://raw.githubusercontent.com/{githubUser}/");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
@@ -25,7 +25,7 @@ namespace CDWPlanner
             var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
             builder.Services.AddHttpClient("zoom", c =>
             {
-                c.BaseAddress = new Uri("https://api.github.com/");
+                c.BaseAddress = new Uri("https://api.zoom.us/v2/");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
