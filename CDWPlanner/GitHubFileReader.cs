@@ -19,25 +19,20 @@ namespace CDWPlanner
 
         public GitHubFileReader(IHttpClientFactory clientFactory)
         {
-            client = clientFactory.CreateClient();
+            client = clientFactory.CreateClient("github");
         }
 
         // GET request to GitHub to get the YML file data with specific URL
         public async Task<WorkshopsRoot> GetYMLFileFromGitHub(FolderFileInfo info, string commitId)
         {
-            var githubUser = Environment.GetEnvironmentVariable("GITHUBUSER", EnvironmentVariableTarget.Process);
+            
 
-            var url = $"https://raw.githubusercontent.com/{githubUser}/{commitId}/{info.FullFolder}";
+            var url = $"{commitId}/{info.FullFolder}";
 
             var webGetRequest = new HttpRequestMessage
             {
                 RequestUri = new Uri(url),
                 Method = HttpMethod.Get,
-                Headers = {
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'"},
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000"},
-                },
             };
             using var getResponse = await client.SendAsync(webGetRequest);
             var getContent = getResponse.Content;

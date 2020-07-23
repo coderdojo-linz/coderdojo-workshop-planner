@@ -20,8 +20,13 @@ namespace CDWPlanner.Tests
             BsonDocument insertedDocument = null;
             dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()))
                 .Callback<BsonDocument>(doc => insertedDocument = doc);
+            var planZoomMeetingMock = new Mock<IPlanZoomMeeting>();
+            planZoomMeetingMock.Setup(z => z.CreateZoomMeetingAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
-            var func = new PlanEvent(null, dataAccessMock.Object, null);
+            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object);
             await func.Receive(@"
             {
               ""Operation"": ""added"",

@@ -1,6 +1,7 @@
 ﻿using CDWPlanner.DTO;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -12,8 +13,8 @@ namespace CDWPlanner
     public interface IPlanZoomMeeting
     {
         Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID);
-        Meeting GetExistingMeetingAsync(string shortCode, List<Meeting> existingMeetingBuffer);
-        Task<List<Meeting>> GetExistingMeetingBufferAsync(string userId);
+        Meeting GetExistingMeetingAsync(string shortCode, IEnumerable<Meeting> existingMeetingBuffer);
+        Task<IEnumerable<Meeting>> GetExistingMeetingBufferAsync();
         void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date);
     }
 
@@ -23,60 +24,42 @@ namespace CDWPlanner
 
         public PlanZoomMeeting(IHttpClientFactory clientFactory)
         {
-            client = clientFactory.CreateClient();
+            client = clientFactory.CreateClient("zoom");
         }
 
-        public async Task<List<Meeting>> GetExistingMeetingBufferAsync(string userId)
+        public async Task<IEnumerable<Meeting>> GetExistingMeetingBufferAsync()
         {
-            var meetingsList = await ListMeetingsAsync(userId);
             var meetingsDetails = new List<Meeting>();
-
-            foreach (var m in meetingsList.meetings)
+            for (var userNum = 0; userNum < 4; userNum++)
             {
-                long meetingId = m.id;
-                var meeting = await GetMeetingsAsync(meetingId);
-                meetingsDetails.Add(meeting);
+                var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
+                var meetingsList = await ListMeetingsAsync(userId);
+                foreach (var m in meetingsList.meetings)
+                {
+                    long meetingId = m.id;
+                    var meeting = await GetMeetingsAsync(meetingId);
+                    meetingsDetails.Add(meeting);
+                }
             }
+
             return meetingsDetails;
         }
 
-        public Meeting GetExistingMeetingAsync(string shortCode, List<Meeting> existingMeetingBuffer)
-        {
-            var meetingExist = new List<Meeting>();
-            var j = -1;
-
-            for (int i = 0; i < existingMeetingBuffer.Count; i++)
-            {
-
-                if (existingMeetingBuffer[i].agenda.Contains($"Shortcode: {shortCode}") && existingMeetingBuffer[i].topic.StartsWith("CoderDojo Online: "))
-                {
-                    meetingExist.Add(existingMeetingBuffer[i]);
-                    j++;
-                    return meetingExist[j];
-                }
-            }
-            return default;
-        }
+        public Meeting GetExistingMeetingAsync(string shortCode, IEnumerable<Meeting> existingMeetingBuffer) =>
+            existingMeetingBuffer.FirstOrDefault(meeting =>
+                meeting.agenda.Contains($"Shortcode: {shortCode}") && meeting.topic.StartsWith("CoderDojo Online: "));
 
         public async void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date)
         {
             var meetingId = meeting.id;
-            var zoomUrl = $"https://api.zoom.us/v2/meetings/{meetingId}";
-            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
+            var zoomUrl = $"meetings/{meetingId}";
             var startTime = $"{date}T{time}:00Z";
 
             var meetingRequest = new HttpRequestMessage
             {
                 RequestUri = new Uri(zoomUrl),
                 Method = HttpMethod.Patch,
-                Headers = {
-
-                    { "meetingId", $"{meetingId}" },
-                    { HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}" },
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'" },
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000" },
-                },
+                Headers = { { "meetingId", $"{meetingId}" } },
                 Content = new StringContent(
                     JsonSerializer.Serialize(new
                     {
@@ -92,8 +75,7 @@ namespace CDWPlanner
 
         public async Task<MeetingsRoot> ListMeetingsAsync(string userId)
         {
-            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
-            var zoomUrl = $"https://api.zoom.us/v2/users/{userId}/meetings";
+            var zoomUrl = $"users/{userId}/meetings";
 
             var webGetRequest = new HttpRequestMessage
             {
@@ -102,10 +84,6 @@ namespace CDWPlanner
                 Headers = {
                     { "type", "scheduled"},
                     { "userId", $"{userId}"},
-                    { "Authorization", $"Bearer {zoomToken}" },
-                    { HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'"},
-                    { HttpRequestHeader.Accept.ToString(), "application/json" },
-                    { "Timeout", "1000000000"},
                 },
             };
             using var getResponse = await client.SendAsync(webGetRequest);
