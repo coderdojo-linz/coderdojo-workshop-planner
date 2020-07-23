@@ -13,6 +13,7 @@ namespace CDWPlanner
         {
             builder.Services.AddHttpClient();
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
+            builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
         }
     }

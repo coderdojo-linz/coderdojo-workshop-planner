@@ -24,11 +24,13 @@ namespace CDWPlanner
     {
         private readonly IGitHubFileReader fileReader;
         private readonly IDataAccess dataAccess;
+        private readonly IPlanZoomMeeting planZoomMeeting;
 
-        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess)
+        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
+            this.planZoomMeeting = planZoomMeeting;
         }
 
         [FunctionName("PlanEvent")]
@@ -96,8 +98,37 @@ namespace CDWPlanner
 
             // Get workshops and write it into an array only if draft flag is false
             var workshopData = new BsonArray();
-            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft))
+            var zoomLink = "test";
+
+            var i = 0;
+            var userNum = 0;
+
+            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft).OrderBy(ws => ws.begintime))
             {
+                var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
+
+                userNum++;
+
+                var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingBufferAsync(userId);
+                var existingMeeting = planZoomMeeting.GetExistingMeetingAsync(w.shortCode, existingMeetingBuffer);
+
+                if (existingMeeting != null)
+                {
+                    log.LogInformation("Updating Meeting");
+                    planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
+                }
+                if (existingMeeting == null)
+                {
+                    log.LogInformation("Creating Meeting");
+                    var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
+                    zoomLink = getLinkData.join_url;
+                    log.LogInformation(zoomLink);
+
+                    i++;
+                }
+
+                w.zoom = zoomLink;
+                w.zoomUser = userId;
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
@@ -117,6 +148,7 @@ namespace CDWPlanner
             log.LogInformation("Successfully written data to db");
         }
 
+
         // Build the data for the database
         internal static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
         {
@@ -128,7 +160,7 @@ namespace CDWPlanner
                 { "workshops", workshopData}
             });
 
-            if(workshopData == null || workshopData.Count == 0)
+            if (workshopData == null || workshopData.Count == 0)
             {
                 eventData["location"] += " - Themen werden noch bekannt gegeben";
             }
@@ -157,7 +189,7 @@ namespace CDWPlanner
                 AddWorkshopHtml(responseBuilder, w);
             }
 
-            responseBuilder.Append(@"</td></tr></tbody></table></section>");
+            responseBuilder.Append(@"</td><td>&nbsp;</td></tr></tbody></table></section>");
 
             var responseMessage = responseBuilder.ToString();
 
