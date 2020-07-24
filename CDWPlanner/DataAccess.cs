@@ -1,8 +1,11 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CDWPlanner.DTO;
+using MongoDB.Bson.Serialization;
 
 namespace CDWPlanner
 {
@@ -11,6 +14,7 @@ namespace CDWPlanner
         Task<BsonDocument> ReadWorkshopForDateAsync(DateTime date);
         Task InsertIntoDBAsync(BsonDocument eventData);
         Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData);
+        Task<IEnumerable<Event>> ReadWorkshopFromEvents(string past);
     };
 
     public class DataAccess : IDataAccess
@@ -46,6 +50,30 @@ namespace CDWPlanner
             var dbEvents = await collection.FindAsync(dateFilter);
             var dbEventsFound = await dbEvents.ToListAsync();
             return dbEventsFound.FirstOrDefault();
+        }
+        public async Task<IEnumerable<Event>> ReadWorkshopFromEvents(string past)
+        {
+            var date = DateTime.Today;
+            var eventsList = new List<Event>();
+            var eventsListAsync = new List<Event>();
+
+            if (past == "false")
+            {
+                var dateFilter = new BsonDocument("date", new BsonDocument {{ "$gte", date }});
+                var dbEvents = await collection.FindAsync(dateFilter);
+                foreach(var doc in await dbEvents.ToListAsync())
+                {
+                    eventsList.Add(BsonSerializer.Deserialize<Event>(doc));
+                }
+                return eventsList;
+            }
+
+            var dbEventsFoundWithoutFilter = await collection.FindAsync(new BsonDocument());
+            foreach (var doc in await dbEventsFoundWithoutFilter.ToListAsync())
+            {
+                eventsListAsync.Add(BsonSerializer.Deserialize<Event>(doc));
+            }
+            return eventsListAsync;
         }
 
         public async Task InsertIntoDBAsync(BsonDocument eventData)

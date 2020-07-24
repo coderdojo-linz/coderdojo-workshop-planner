@@ -126,6 +126,7 @@ namespace CDWPlanner
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
                     w.zoom = existingMeeting.join_url;
                     var correctUser = planZoomMeeting.GetUserByHostId(users, existingMeeting.host_id);
+                    var hostKey = correctUser.host_key;
                     w.zoomUser = correctUser.email;
                 }
                 else
@@ -201,6 +202,17 @@ namespace CDWPlanner
             var responseMessage = responseBuilder.ToString();
 
             return new OkObjectResult(responseMessage);
+        }
+
+        [FunctionName("events")]
+        public async Task<IActionResult> RunEvent(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger _)
+        {
+            var past = req.Query["past"];
+            var dbEvents = await dataAccess.ReadWorkshopFromEvents(past);
+
+            return new OkObjectResult(dbEvents);
         }
 
         // Build the html string

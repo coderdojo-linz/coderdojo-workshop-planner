@@ -21,11 +21,11 @@ namespace CDWPlanner.DTO
         public List<Commit> commits { get; set; }
     }
 
-    public class Collection
+    public class Event
     {
-        public Id id { get; set; }
+        public ObjectId _id { get; set; }
 
-        public Date dateOfFile { get; set; }
+        public DateTime date { get; set; }
 
         public string type { get; set; }
 
@@ -150,7 +150,17 @@ namespace CDWPlanner.DTO
         public int type { get; set; }
         public int verified { get; set; }
         public string phone_number { get; set; }
-
+        public string account_id { get; set; }
+        public List<object> group_ids { get; set; }
+        public string host_key { get; set; }
+        public List<object> im_group_ids { get; set; }
+        public string jid { get; set; }
+        public string job_title { get; set; }
+        public string location { get; set; }
+        public string personal_meeting_url { get; set; }
+        public string phone_country { get; set; }
+        public string role_name { get; set; }
+        public bool use_pmi { get; set; }
     }
 
     public class UsersRoot
