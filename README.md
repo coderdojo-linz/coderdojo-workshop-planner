@@ -1,16 +1,22 @@
 ## CoderDojo Workshop Planer
+
 ![Deploy CDW-Planner to Azure Function App](https://github.com/coderdojo-linz/coderdojo-workshop-planner/workflows/Deploy%20CDW-Planner%20to%20Azure%20Function%20App/badge.svg)
+
 ### How to construct a correct workshop plan
+
 #### Create a Folder
+
 + Folder format must be `YYYY-MM-DD` like `2020-07-16`
 + Create for every date a new folder
 
 #### Create the YML File
+
 + File must be named `PLAN.yml` or `plan.yml`.
 + It must be a `.yml` or `.yaml` file
 + Insert your workshop data in that file. <br><b>Do not create a file for every single workshop!</b>
 
-#### Syntax:
+#### Syntax
+
 ```yml
 workshops:
 - begintime: 'your time'
@@ -26,7 +32,6 @@ workshops:
     - you
   zoom: 'zoomlink'
 ```
-
 
 | Parameter     | Description |
 | ------------  | ----------- |
