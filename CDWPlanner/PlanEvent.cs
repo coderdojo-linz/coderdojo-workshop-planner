@@ -204,6 +204,7 @@ namespace CDWPlanner
             return new OkObjectResult(responseMessage);
         }
 
+        // Get events
         [FunctionName("events")]
         public async Task<IActionResult> RunEvent(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
