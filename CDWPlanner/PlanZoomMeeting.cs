@@ -14,9 +14,9 @@ namespace CDWPlanner
         Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID);
         Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode);
         Task<IEnumerable<Meeting>> GetExistingMeetingsAsync();
-        Task<IEnumerable<User>> GetUsersAsync();
+        Task<User> GetUserIdAsync();
         void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date);
-        User GetUserByHostId(IEnumerable<User> user, string hostId);
+        bool GetUserByHostId(string id, string hostId);
     }
 
     public class PlanZoomMeeting : IPlanZoomMeeting
@@ -49,11 +49,21 @@ namespace CDWPlanner
             existingMeetingBuffer.FirstOrDefault(meeting =>
                 meeting.agenda.Contains($"Shortcode: {shortCode}") && meeting.topic.StartsWith("CoderDojo Online: "));
 
-        public async Task<IEnumerable<User>> GetUsersAsync() =>
-            (await GetFromZoomAsync<UsersRoot>($"users")).users;
+        public async Task<User> GetUserIdAsync()
+        {
+            var usersListAsync = await GetFromZoomAsync<UsersRoot>($"users");
 
-        public User GetUserByHostId(IEnumerable<User> users, string hostId) =>
-            users.FirstOrDefault(u => u.id == hostId);
+            for (var i = 0; i < usersListAsync.users.Count; i++)
+            {
+                using var getResponse = await client.GetAsync($"https://api.zoom.us/v2/users/{usersListAsync.users[i].id}");
+                var getJsonContent = getResponse.Content.ReadAsStringAsync().Result;
+                return JsonSerializer.Deserialize<User>(getJsonContent);
+            }
+            return default;
+        }
+
+        public bool GetUserByHostId(string id, string hostId) =>
+            id.Equals(hostId);
         
         private async Task<T> GetFromZoomAsync<T>(string url)
         {
