@@ -56,7 +56,6 @@ namespace CDWPlanner.DTO
         public string shortCode { get; set; }
         public string zoomUser { get; set; }
         public string zoom { get; set; }
-        public string host_key { get; set; }
 
         public BsonDocument ToBsonDocument(DateTime baseDate) =>
             new BsonDocument {
@@ -68,8 +67,7 @@ namespace CDWPlanner.DTO
                 { "prerequisites" , prerequisites},
                 { "mentors", new BsonArray(mentors)},
                 { "zoomUser" , zoomUser },
-                { "zoom" , zoom },
-                { "host_key" , host_key }
+                { "zoom" , zoom }
             };
     }
 

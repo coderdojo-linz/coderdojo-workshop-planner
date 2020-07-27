@@ -14,9 +14,9 @@ namespace CDWPlanner
         Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID);
         Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode);
         Task<IEnumerable<Meeting>> GetExistingMeetingsAsync();
-        Task<User> GetUserIdAsync();
+        Task<IEnumerable<User>> GetUsersAsync();
         void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date);
-        bool GetUserByHostId(string id, string hostId);
+        User GetUser(IEnumerable<User> usersBuffer, string zoomUser);
     }
 
     public class PlanZoomMeeting : IPlanZoomMeeting
@@ -48,22 +48,31 @@ namespace CDWPlanner
         public Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode) =>
             existingMeetingBuffer.FirstOrDefault(meeting =>
                 meeting.agenda.Contains($"Shortcode: {shortCode}") && meeting.topic.StartsWith("CoderDojo Online: "));
-
-        public async Task<User> GetUserIdAsync()
+        public async Task<IEnumerable<User>> GetUsersAsync()
         {
+            var usersDetails = new List<User>();
             var usersListAsync = await GetFromZoomAsync<UsersRoot>($"users");
-
             for (var i = 0; i < usersListAsync.users.Count; i++)
             {
                 using var getResponse = await client.GetAsync($"https://api.zoom.us/v2/users/{usersListAsync.users[i].id}");
                 var getJsonContent = getResponse.Content.ReadAsStringAsync().Result;
-                return JsonSerializer.Deserialize<User>(getJsonContent);
+                usersDetails.Add(JsonSerializer.Deserialize<User>(getJsonContent));
+            }
+
+            return usersDetails;
+        }
+
+        public User GetUser(IEnumerable<User> usersBuffer, string zoomUser)
+        {
+            foreach(var user in usersBuffer)
+            {
+                if (zoomUser.Equals(user.email))
+                {
+                    return user;
+                }
             }
             return default;
         }
-
-        public bool GetUserByHostId(string id, string hostId) =>
-            id.Equals(hostId);
         
         private async Task<T> GetFromZoomAsync<T>(string url)
         {

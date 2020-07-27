@@ -107,6 +107,7 @@ namespace CDWPlanner
 
             // Read all existing meetings in an in-memory buffer.
             var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
+            var usersBuffer = await planZoomMeeting.GetUsersAsync();
 
             // Helper variable for calculating user name.
             // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
@@ -127,23 +128,15 @@ namespace CDWPlanner
                     log.LogInformation("Updating Meeting");
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
                     w.zoom = existingMeeting.join_url;
-                    var host = await planZoomMeeting.GetUserIdAsync();
-                    var correctId = planZoomMeeting.GetUserByHostId(host.id, existingMeeting.host_id);
-                    if (correctId)
-                    {
-                        w.host_key = host.host_key;
-                        w.zoomUser = host.email;
-                    }
                 }
                 else
                 {
                     log.LogInformation("Creating Meeting");
                     var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
                     w.zoom = getLinkData.join_url;
-                    w.host_key = getLinkData.host_id;
                     w.zoomUser = userId;
                 }
-                
+
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
@@ -221,7 +214,7 @@ namespace CDWPlanner
             var dbEvents = await dataAccess.ReadWorkshopFromEventsAsync(past);
             return new OkObjectResult(dbEvents);
         }
-/**/
+        /**/
         [FunctionName("SendEmails")]
         public async Task<IActionResult> SendEmails(
            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
@@ -233,19 +226,14 @@ namespace CDWPlanner
             var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
 
             var emailContent = new StringBuilder();
-            var mentorsList = new List<string>();
-            var mentor = string.Empty;
 
             foreach (var w in dbEventsFound.GetElement("workshops").Value.AsBsonArray)
             {
-              mentor = AddWorkshopAndMentors(emailContent, w);
+                var mentors = await AddWorkshopAndMentorsAsync(emailContent, w);
+                var mentorsArray = mentors.Split(",");
+                SendEmail(emailContent, mentorsArray[0].Replace("[", "").Replace("]", " ").Replace(" ", "")).Wait();
+                emailContent.Clear();
             }
-            var mentorsArray = mentor.Split(",");
-            foreach(var m in mentorsArray)
-            {
-                mentorsList.Add(m.Replace("[", "").Replace("]", "").Replace(" ", ""));
-            }
-            SendEmail(emailContent, mentorsList).Wait();
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
 
@@ -268,7 +256,7 @@ namespace CDWPlanner
         }
 
         // Build the email string
-        internal static string AddWorkshopAndMentors(StringBuilder emailContent, BsonValue w)
+        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, BsonValue w)
         {
             static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
             var begintime = w["begintime"].ToString();
@@ -278,18 +266,17 @@ namespace CDWPlanner
             var mentors = w["mentors"].ToString();
             var zoomUser = w["zoomUser"].ToString();
             var zoom = w["zoom"].ToString();
-            var hostKey = w["host_key"].ToString();
 
             var mentorsArray = mentors.Split(",");
-            
+            var usersBuffer = await planZoomMeeting.GetUsersAsync();
+            var user = planZoomMeeting.GetUser(usersBuffer, zoomUser);
             var bTime = ExtractTime(begintime);
             var eTime = ExtractTime(endtime);
-
-            emailContent.Append($"Hallo {mentorsArray[0].Replace("[", "")}!<br><br>Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>Titel: {title}<br>Startzeit: {bTime}<br>Endzeit: {eTime}<br>Beschreibung: {description}<br>Zoom User: {zoomUser}<br>Zoom URL: {zoom}<br>Dein Hostkey: {hostKey}<br><br>Viele Grüße,<br>Dein CoderDojo Organisationsteam");
+            emailContent.Append($"Hallo {mentorsArray[0].Replace("[", "").Replace("]", " ").Replace(" ", "")}!<br><br>Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>Titel: {title}<br>Startzeit: {bTime}<br>Endzeit: {eTime}<br>Beschreibung: {description}<br>Zoom User: {zoomUser}<br>Zoom URL: {zoom}<br>Dein Hostkey: {user.host_key}<br><br>Viele Grüße,<br>Dein CoderDojo Organisationsteam");
             return mentors;
         }
 
-        internal async Task SendEmail(StringBuilder content, List<string> mentorsList)
+        internal async Task SendEmail(StringBuilder content, string mentor)
         {
             var mentors = new Dictionary<string, string>();
             var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
@@ -300,7 +287,7 @@ namespace CDWPlanner
 
             foreach (var m in mentorsFromDB)
             {
-                if (m.firstname.Contains(mentorsList.First()))
+                if (m.firstname == mentor)
                 {
                     mentors.Add(m.nickname, m.email);
                     var to = new EmailAddress(mentors[m.firstname]);
