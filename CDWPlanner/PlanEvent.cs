@@ -19,6 +19,7 @@ using Markdig;
 using System.Text;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using Ical.Net.Serialization;
 
 namespace CDWPlanner
 {
@@ -244,12 +245,14 @@ namespace CDWPlanner
             var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
 
             var emailContent = new StringBuilder();
+
+            var icsFileContent = new StringBuilder();
             foreach (var w in eventFound.workshops)
             {
-                var firstMentor = await AddWorkshopAndMentorsAsync(emailContent, w);
+                var firstMentor = await AddWorkshopAndMentorsAsync(emailContent, icsFileContent, w);
                 if (firstMentor != null)
                 {
-                    await SendEmail(emailContent, firstMentor, mentorsFromDB);
+                    await SendEmail(emailContent, icsFileContent, mentorsFromDB, firstMentor);
                     emailContent.Clear();
                 }
             }
@@ -257,7 +260,8 @@ namespace CDWPlanner
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
 
-        private static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
+        private static string ExtractTime(string time) => DateTime.Parse(time).ToString("HH:mm");
+        private static string ExtractDate(string time) => DateTime.Parse(time).ToString("yyyyMMddTHHmmss");
 
         // Build the html string
         internal static void AddWorkshopHtml(StringBuilder responseBuilder, Workshop w)
@@ -271,7 +275,7 @@ namespace CDWPlanner
         }
 
         // Build the email string
-        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, Workshop w)
+        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, StringBuilder str, Workshop w)
         {
             if (w.mentors.Count == 0)
             {
@@ -280,25 +284,81 @@ namespace CDWPlanner
 
             var usersBuffer = await planZoomMeeting.GetUsersAsync();
             var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
-            var bTime = ExtractTime(w.begintime);
-            var eTime = ExtractTime(w.endtime);
+
             emailContent.Append($"Hallo {w.mentors[0]}!<br><br>");
             emailContent.Append($"Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>");
-            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {bTime}<br>Endzeit: {eTime}<br>Beschreibung: {w.descriptionHtml}");
+            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {ExtractTime(w.begintime)}<br>Endzeit: {ExtractTime(w.endtime)}<br>Beschreibung: {w.descriptionHtml}");
             emailContent.Append($"<br>Zoom User: {w.zoomUser}<br>Zoom URL: {w.zoom}<br>Dein Hostkey: {user.host_key}<br><br>");
             emailContent.Append($"Viele Grüße,<br>Dein CoderDojo Organisationsteam");
+
+            // Build ics file
+            str.AppendLine("BEGIN:VCALENDAR");
+            str.AppendLine("VERSION:2.0");
+            str.AppendLine("PRODID:-//ical.marudot.com//iCal Event Maker");
+            str.AppendLine("CALSCALE:GREGORIAN");
+            str.AppendLine("METHOPD:PUBLISH");
+            str.AppendLine("CLASS:PUBLIC");
+            str.AppendLine("BEGIN:VTIMEZONE");
+            str.AppendLine("TZID:Europe/Vienna");
+            str.AppendLine("TZURL:http://tzurl.org/zoneinfo-outlook/Europe/Berlin");
+            str.AppendLine("X-LIC-LOCATION:Europe/Vienna");
+            str.AppendLine("BEGIN:DAYLIGHT");
+            str.AppendLine("TZOFFSETFROM:+0100");
+            str.AppendLine("TZOFFSETTO:+0200");
+            str.AppendLine("TZNAME:CEST");
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU");
+            str.AppendLine("END:DAYLIGHT");
+            str.AppendLine("BEGIN:STANDARD");
+            str.AppendLine("TZOFFSETFROM:+0200");
+            str.AppendLine("TZOFFSETTO:+0100");
+            str.AppendLine("TZNAME:CET");
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU");
+            str.AppendLine("END:STANDARD");
+            str.AppendLine("END:VTIMEZONE");
+            str.AppendLine("BEGIN:VEVENT");
+            str.AppendLine(string.Format("DTSTAMP:{0:yyyyMMddTHHmmssZ}", ExtractDate(w.begintime)));
+            str.AppendLine(string.Format("DTSTART;TZID=Europe/Vienna:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine(string.Format("DTEND;TZID=Europe/Vienna:{0:yyyyMMddTHHmmss}", ExtractDate(w.endtime)));
+            str.AppendLine(string.Format("SUMMARY:{0}", w.titleHtml));
+            str.AppendLine("UID:20200727T072232Z-1947992826@marudot.com");
+            str.AppendLine("TZID:Europe/Vienna");
+            str.AppendLine(string.Format("DESCRIPTION:{0}", w.descriptionHtml));
+            str.AppendLine("LOCATION: Online");
+            str.AppendLine("BEGIN:VALARM");
+            str.AppendLine("TRIGGER:-PT10M");
+            str.AppendLine("ACTION:DISPLAY");
+            str.AppendLine("DESCRIPTION:Reminder");
+            str.AppendLine("END:VALARM");
+            str.AppendLine("END:VEVENT");
+            str.AppendLine("END:VCALENDAR");
+
             return w.mentors[0];
         }
 
-        internal async Task SendEmail(StringBuilder content, string mentor, IEnumerable<Mentor> mentorsFromDB)
+        internal async Task SendEmail(StringBuilder content, StringBuilder icsFileContent, IEnumerable<Mentor> mentorsFromDB, string mentor)
         {
             var mentors = new Dictionary<string, string>();
             var apiKey = Environment.GetEnvironmentVariable("EMAILAPIKEY", EnvironmentVariableTarget.Process);
+            var emailSender = Environment.GetEnvironmentVariable("EMAILSENDER", EnvironmentVariableTarget.Process);
+
             var client = new SendGridClient(apiKey);
 
-            var emailSender = Environment.GetEnvironmentVariable("EMAILSENDER", EnvironmentVariableTarget.Process);
-            var from = new EmailAddress(emailSender, "CoderDojo");
-            var subject = "Dein CoderDojo Online Workshop";
+            var icsAttachment = new Attachment()
+            {
+                Content = Convert.ToBase64String(Encoding.UTF8.GetBytes(icsFileContent.ToString())),
+                Type = "text/calendar",
+                Filename = "meeting.ics",
+                Disposition = "inline",
+                ContentId = "Attachment"
+            };
+
+            var msg = new SendGridMessage();
+
+            msg.SetFrom(new EmailAddress(emailSender, "CoderDojo"));
+            msg.SetSubject("Dein CoderDojo Online Workshop");
+            msg.AddAttachment(icsAttachment);
 
             var mentorFromDB = mentorsFromDB.FirstOrDefault(mdb => mdb.firstname == mentor);
             if (mentorFromDB == null)
@@ -307,8 +367,9 @@ namespace CDWPlanner
             }
 
             mentors.Add(mentorFromDB.nickname, mentorFromDB.email);
-            var to = new EmailAddress(mentors[mentorFromDB.firstname]);
-            var msg = MailHelper.CreateSingleEmail(from, to, subject, content.ToString(), content.ToString());
+            msg.AddTo(new EmailAddress(mentors[mentorFromDB.firstname]));
+            msg.AddContent(MimeType.Text, content.ToString());
+            msg.AddContent(MimeType.Html, content.ToString());
             var response = await client.SendEmailAsync(msg);
         }
     }
