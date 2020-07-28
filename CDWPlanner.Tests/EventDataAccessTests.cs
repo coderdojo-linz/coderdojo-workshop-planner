@@ -15,8 +15,8 @@ namespace CDWPlanner.Tests
         public async Task AddNewEvent()
         {
             var dataAccessMock = new Mock<IDataAccess>();
-            dataAccessMock.Setup(da => da.ReadWorkshopForDateAsync(It.IsAny<DateTime>()))
-                .Returns(Task.FromResult<BsonDocument>(null));
+            dataAccessMock.Setup(da => da.ReadEventForDateFromDBAsync(It.IsAny<DateTime>()))
+                .Returns(Task.FromResult<Event>(null));
             BsonDocument insertedDocument = null;
             dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()))
                 .Callback<BsonDocument>(doc => insertedDocument = doc);
@@ -54,7 +54,7 @@ namespace CDWPlanner.Tests
               }
             }", Mock.Of<ILogger>());
 
-            dataAccessMock.Verify(da => da.ReadWorkshopForDateAsync(It.IsAny<DateTime>()), Times.Once);
+            dataAccessMock.Verify(da => da.ReadEventForDateFromDBAsync(It.IsAny<DateTime>()), Times.Once);
             dataAccessMock.Verify(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()), Times.Once);
 
             Assert.Single(insertedDocument["workshops"] as BsonArray);

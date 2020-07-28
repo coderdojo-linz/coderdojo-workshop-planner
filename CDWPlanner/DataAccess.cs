@@ -11,10 +11,10 @@ namespace CDWPlanner
 {
     public interface IDataAccess
     {
-        Task<BsonDocument> ReadWorkshopForDateAsync(DateTime date);
+        Task<Event> ReadEventForDateFromDBAsync(DateTime date);
         Task InsertIntoDBAsync(BsonDocument eventData);
         Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData);
-        Task<IEnumerable<Event>> ReadWorkshopFromEventsAsync(string past);
+        Task<IEnumerable<Event>> ReadEventsFromDBAsync(bool past);
         Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync();
     };
 
@@ -29,14 +29,15 @@ namespace CDWPlanner
             collectionMentors = GetCollectionFromServer(Environment.GetEnvironmentVariable("MONGOCOLLECTIONMENTORS", EnvironmentVariableTarget.Process));
         }
 
-        //Connect with server and get collection
+        /// <summary>
+        /// Connect with server and get collection
+        /// </summary>
         private IMongoCollection<BsonDocument> GetCollectionFromServer(string dbCollectionString)
         {
             var dbUser = Environment.GetEnvironmentVariable("MONGOUSER", EnvironmentVariableTarget.Process);
             var dbPassword = Environment.GetEnvironmentVariable("MONGOPASSWORD", EnvironmentVariableTarget.Process);
             var dbString = Environment.GetEnvironmentVariable("MONGODB", EnvironmentVariableTarget.Process);
             var dbConnection = Environment.GetEnvironmentVariable("MONGOCONNECTION", EnvironmentVariableTarget.Process);
-           // var dbCollectionString = Environment.GetEnvironmentVariable("MONGOCOLLECTION", EnvironmentVariableTarget.Process);
 
             var urlMongo = $"mongodb://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=false";
             var dbClient = new MongoClient(urlMongo);
@@ -47,60 +48,50 @@ namespace CDWPlanner
             return dbCollection;
         }
 
-        public async Task<BsonDocument> ReadWorkshopForDateAsync(DateTime date)
+        private async Task<IEnumerable<T>> ReadFromDBAsync<T>(IMongoCollection<BsonDocument> source, BsonDocument filter)
+        {
+            var result = new List<T>();
+            var queryResult = await source.FindAsync(filter);
+            foreach (var m in await queryResult.ToListAsync())
+            {
+                result.Add(BsonSerializer.Deserialize<T>(m));
+            }
+
+            return result;
+        }
+
+        public async Task<Event> ReadEventForDateFromDBAsync(DateTime date)
         {
             var dateFilter = new BsonDocument("date", date);
-            var dbEvents = await collectionEvents.FindAsync(dateFilter);
-            var dbEventsFound = await dbEvents.ToListAsync();
+            var dbEventsFound = await ReadFromDBAsync<Event>(collectionEvents, dateFilter);
             return dbEventsFound.FirstOrDefault();
         }
-        public async Task<IEnumerable<Event>> ReadWorkshopFromEventsAsync(string past)
-        {
-            var date = DateTime.Today;
-            var eventsList = new List<Event>();
-            var eventsListAsync = new List<Event>();
 
-            if (past == "false")
+        public async Task<IEnumerable<Event>> ReadEventsFromDBAsync(bool past)
+        {
+            BsonDocument dateFilter;
+            if (!past)
             {
-                var dateFilter = new BsonDocument("date", new BsonDocument {{ "$gte", date }});
-                var dbEvents = await collectionEvents.FindAsync(dateFilter);
-                foreach(var doc in await dbEvents.ToListAsync())
-                {
-                    eventsList.Add(BsonSerializer.Deserialize<Event>(doc));
-                }
-                return eventsList;
+                dateFilter = new BsonDocument("date", new BsonDocument {{ "$gte", DateTime.Today }});
+            }
+            else
+            {
+                dateFilter = new BsonDocument();
             }
 
-            var dbEventsFoundWithoutFilter = await collectionEvents.FindAsync(new BsonDocument());
-            foreach (var doc in await dbEventsFoundWithoutFilter.ToListAsync())
-            {
-                eventsListAsync.Add(BsonSerializer.Deserialize<Event>(doc));
-            }
-            return eventsListAsync;
+            return await ReadFromDBAsync<Event>(collectionEvents, dateFilter);
         }
 
-        public async Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync()
-        {
-            var mentorsListAsync = new List<Mentor>();
-            var dbMentors = await collectionMentors.FindAsync(new BsonDocument());
-            foreach (var m in await dbMentors.ToListAsync())
-            {
-                mentorsListAsync.Add(BsonSerializer.Deserialize<Mentor>(m));
-            }
-            return mentorsListAsync;
-        }
+        public async Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync() =>
+            await ReadFromDBAsync<Mentor>(collectionMentors, new BsonDocument());
 
-        public async Task InsertIntoDBAsync(BsonDocument eventData)
-        {
-            var collection = GetCollectionFromServer(Environment.GetEnvironmentVariable("MONGOCOLLECTIONEVENTS", EnvironmentVariableTarget.Process));
-            await collection.InsertOneAsync(eventData);
-        }
+        public async Task InsertIntoDBAsync(BsonDocument eventData) =>
+            await collectionEvents.InsertOneAsync(eventData);
 
         public async Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData)
         {
             var dateFilter = new BsonDocument("date", date);
-            var collection = GetCollectionFromServer(Environment.GetEnvironmentVariable("MONGOCOLLECTIONEVENTS", EnvironmentVariableTarget.Process));
-            await collection.ReplaceOneAsync(dateFilter, eventData);
+            await collectionEvents.ReplaceOneAsync(dateFilter, eventData);
         }
     }
 }

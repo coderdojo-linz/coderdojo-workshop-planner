@@ -147,15 +147,13 @@ namespace CDWPlanner.Tests
         [Fact]
         public void AddWorkshopHtmlTest()
         {
-            var ws = new BsonDocument();
-            ws.AddRange(new Dictionary<string, object>
-            {
-                { "begintime", new DateTime(2020, 1, 1, 13, 0, 0)},
-                { "endtime", new DateTime(2020, 1, 1, 14, 0, 0)},
-                { "description", "*Bar*" },
-                { "title", "Foo" },
-                { "targetAudience", "FooBar" },
-            });
+            var ws = new Workshop{ 
+                begintime = new DateTime(2020, 1, 1, 13, 0, 0).ToString("o"),
+                endtime = new DateTime(2020, 1, 1, 14, 0, 0).ToString("o"),
+                description = "*Bar*",
+                title = "Foo",
+                targetAudience = "FooBar"
+            };
             var builder = new StringBuilder();
             PlanEvent.AddWorkshopHtml(builder, ws);
 

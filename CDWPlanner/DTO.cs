@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using Markdig;
+using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 
@@ -49,8 +50,11 @@ namespace CDWPlanner.DTO
         public string endtime { get; set; }
         public bool draft { get; set; }
         public string title { get; set; }
+        public string titleHtml => Markdown.ToHtml(title)[3..^5];
         public string targetAudience { get; set; }
+        public string targetAudienceHtml => Markdown.ToHtml(targetAudience)[3..^5];
         public string description { get; set; }
+        public string descriptionHtml => Markdown.ToHtml(description)[3..^5];
         public string prerequisites { get; set; }
         public List<string> mentors { get; set; }
         public string shortCode { get; set; }

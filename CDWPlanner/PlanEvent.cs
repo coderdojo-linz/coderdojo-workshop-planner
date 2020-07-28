@@ -99,7 +99,7 @@ namespace CDWPlanner
             var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(dateFolder), DateTimeKind.Utc);
 
             // Read event data (including workshops) from database
-            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
+            var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
             var found = dbEventsFound != null;
 
             // Get workshops and write it into an array only if draft flag is false
@@ -107,7 +107,6 @@ namespace CDWPlanner
 
             // Read all existing meetings in an in-memory buffer.
             var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
-            var usersBuffer = await planZoomMeeting.GetUsersAsync();
 
             // Helper variable for calculating user name.
             // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
@@ -181,18 +180,23 @@ namespace CDWPlanner
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger _)
         {
+            if (!req.Query.ContainsKey("date"))
+            {
+                return new BadRequestObjectResult("Missing parameter 'date'.");
+            }
+
             var date = req.Query["date"];
 
             var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
-            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
+            var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
 
-            var workshops = dbEventsFound.GetElement("workshops");
+            var workshops = dbEventsFound.workshops;
             var responseBuilder = new StringBuilder(@"<section class='main'><table width = '100%'>
                                     <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
 			                        <h1>Hallo&nbsp;*|FNAME|*,</h1>
 			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
                                     ");
-            foreach (var w in workshops.Value.AsBsonArray)
+            foreach (var w in workshops)
             {
                 AddWorkshopHtml(responseBuilder, w);
             }
@@ -210,91 +214,101 @@ namespace CDWPlanner
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger _)
         {
-            var past = req.Query["past"];
-            var dbEvents = await dataAccess.ReadWorkshopFromEventsAsync(past);
+            var past = false;
+            if (req.Query.ContainsKey("past"))
+            {
+                var pastString = req.Query["past"].ToString();
+                bool.TryParse(pastString, out past);
+            }
+
+            var dbEvents = await dataAccess.ReadEventsFromDBAsync(past);
             return new OkObjectResult(dbEvents);
         }
-        /**/
+
         [FunctionName("SendEmails")]
         public async Task<IActionResult> SendEmails(
            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
            ILogger _)
         {
+            if (!req.Query.ContainsKey("date"))
+            {
+                return new BadRequestObjectResult("Missing parameter 'date'.");
+            }
+
             var date = req.Query["date"];
 
             var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
-            var dbEventsFound = await dataAccess.ReadWorkshopForDateAsync(parsedUtcDateEvent);
+            var eventFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
+            var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
 
             var emailContent = new StringBuilder();
-
-            foreach (var w in dbEventsFound.GetElement("workshops").Value.AsBsonArray)
+            foreach (var w in eventFound.workshops)
             {
-                var mentors = await AddWorkshopAndMentorsAsync(emailContent, w);
-                var mentorsArray = mentors.Split(",");
-                SendEmail(emailContent, mentorsArray[0].Replace("[", "").Replace("]", " ").Replace(" ", "")).Wait();
-                emailContent.Clear();
+                var firstMentor = await AddWorkshopAndMentorsAsync(emailContent, w);
+                if (firstMentor != null)
+                {
+                    await SendEmail(emailContent, firstMentor, mentorsFromDB);
+                    emailContent.Clear();
+                }
             }
+
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
 
+        private static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
 
         // Build the html string
-        internal static void AddWorkshopHtml(StringBuilder responseBuilder, BsonValue w)
+        internal static void AddWorkshopHtml(StringBuilder responseBuilder, Workshop w)
         {
-            static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
 
-            var begintime = w["begintime"].ToString();
-            var endtime = w["endtime"].ToString();
-            var description = Markdown.ToHtml(w["description"].ToString())[3..^5];
-            var title = Markdown.ToHtml(w["title"].ToString())[3..^5];
-            var targetAudience = Markdown.ToHtml(w["targetAudience"].ToString())[3..^5];
-            var bTime = ExtractTime(begintime);
-            var eTime = ExtractTime(endtime);
+            var bTime = ExtractTime(w.begintime);
+            var eTime = ExtractTime(w.endtime);
             var timeString = $"{bTime} - {eTime}";
 
-            responseBuilder.Append($@"<h3>{title}</h3><p class='subtitle'>{timeString}<br/>{targetAudience}</p><p>{description}</p>");
+            responseBuilder.Append($@"<h3>{w.titleHtml}</h3><p class='subtitle'>{timeString}<br/>{w.targetAudienceHtml}</p><p>{w.descriptionHtml}</p>");
         }
 
         // Build the email string
-        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, BsonValue w)
+        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, Workshop w)
         {
-            static string ExtractTime(string begintime) => DateTime.Parse(begintime).ToString("HH:mm");
-            var begintime = w["begintime"].ToString();
-            var endtime = w["endtime"].ToString();
-            var description = Markdown.ToHtml(w["description"].ToString())[3..^5];
-            var title = Markdown.ToHtml(w["title"].ToString())[3..^5];
-            var mentors = w["mentors"].ToString();
-            var zoomUser = w["zoomUser"].ToString();
-            var zoom = w["zoom"].ToString();
+            if (w.mentors.Count == 0)
+            {
+                return null;
+            }
 
-            var mentorsArray = mentors.Split(",");
             var usersBuffer = await planZoomMeeting.GetUsersAsync();
-            var user = planZoomMeeting.GetUser(usersBuffer, zoomUser);
-            var bTime = ExtractTime(begintime);
-            var eTime = ExtractTime(endtime);
-            emailContent.Append($"Hallo {mentorsArray[0].Replace("[", "").Replace("]", " ").Replace(" ", "")}!<br><br>Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>Titel: {title}<br>Startzeit: {bTime}<br>Endzeit: {eTime}<br>Beschreibung: {description}<br>Zoom User: {zoomUser}<br>Zoom URL: {zoom}<br>Dein Hostkey: {user.host_key}<br><br>Viele Grüße,<br>Dein CoderDojo Organisationsteam");
-            return mentors;
+            var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
+            var bTime = ExtractTime(w.begintime);
+            var eTime = ExtractTime(w.endtime);
+            emailContent.Append($"Hallo {w.mentors[0]}!<br><br>");
+            emailContent.Append($"Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>");
+            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {bTime}<br>Endzeit: {eTime}<br>Beschreibung: {w.descriptionHtml}");
+            emailContent.Append($"<br>Zoom User: {w.zoomUser}<br>Zoom URL: {w.zoom}<br>Dein Hostkey: {user.host_key}<br><br>");
+            emailContent.Append($"Viele Grüße,<br>Dein CoderDojo Organisationsteam");
+            return w.mentors[0];
         }
 
-        internal async Task SendEmail(StringBuilder content, string mentor)
+        internal async Task SendEmail(StringBuilder content, string mentor, IEnumerable<Mentor> mentorsFromDB)
         {
             var mentors = new Dictionary<string, string>();
-            var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
             var apiKey = Environment.GetEnvironmentVariable("EMAILAPIKEY", EnvironmentVariableTarget.Process);
             var client = new SendGridClient(apiKey);
-            var from = new EmailAddress("info@linz.coderdojo.net", "CoderDojo");
-            var subject = "Your Workshop Information";
 
-            foreach (var m in mentorsFromDB)
+            // Todo: Email address as setting
+
+            var from = new EmailAddress("info@linz.coderdojo.net", "CoderDojo");
+            var subject = "Dein CoderDojo Online Workshop";
+
+            var mentorFromDB = mentorsFromDB.FirstOrDefault(mdb => mdb.firstname == mentor);
+            if (mentorFromDB == null)
             {
-                if (m.firstname == mentor)
-                {
-                    mentors.Add(m.nickname, m.email);
-                    var to = new EmailAddress(mentors[m.firstname]);
-                    var msg = MailHelper.CreateSingleEmail(from, to, subject, content.ToString(), content.ToString());
-                    var response = await client.SendEmailAsync(msg);
-                }
+                return;
             }
+
+            mentors.Add(mentorFromDB.nickname, mentorFromDB.email);
+            var to = new EmailAddress(mentors[mentorFromDB.firstname]);
+            var msg = MailHelper.CreateSingleEmail(from, to, subject, content.ToString(), content.ToString());
+            var response = await client.SendEmailAsync(msg);
         }
     }
 }
