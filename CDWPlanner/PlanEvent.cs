@@ -117,9 +117,11 @@ namespace CDWPlanner
             {
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
+                w.zoom = "Placeholder";
+                w.zoomUser = "Placeholder";
 
                 // Find meeting in meeting buffer
-                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode);
+                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode, parsedDateEvent);
 
                 // Create or update meeting
                 if (existingMeeting != null)
@@ -133,9 +135,9 @@ namespace CDWPlanner
                     log.LogInformation("Creating Meeting");
                     var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
                     w.zoom = getLinkData.join_url;
-                    w.zoomUser = userId;
                 }
 
+                w.zoomUser = userId;
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
@@ -294,9 +296,8 @@ namespace CDWPlanner
             var apiKey = Environment.GetEnvironmentVariable("EMAILAPIKEY", EnvironmentVariableTarget.Process);
             var client = new SendGridClient(apiKey);
 
-            // Todo: Email address as setting
-
-            var from = new EmailAddress("info@linz.coderdojo.net", "CoderDojo");
+            var emailSender = Environment.GetEnvironmentVariable("EMAILSENDER", EnvironmentVariableTarget.Process);
+            var from = new EmailAddress(emailSender, "CoderDojo");
             var subject = "Dein CoderDojo Online Workshop";
 
             var mentorFromDB = mentorsFromDB.FirstOrDefault(mdb => mdb.firstname == mentor);

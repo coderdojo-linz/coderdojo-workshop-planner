@@ -12,7 +12,7 @@ namespace CDWPlanner
     public interface IPlanZoomMeeting
     {
         Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID);
-        Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode);
+        Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode, DateTime date);
         Task<IEnumerable<Meeting>> GetExistingMeetingsAsync();
         void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date);
         Task<IEnumerable<User>> GetUsersAsync();
@@ -45,9 +45,13 @@ namespace CDWPlanner
             return meetingsDetails;
         }
 
-        public Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode) =>
+        public Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode, DateTime date) =>
             existingMeetingBuffer.FirstOrDefault(meeting =>
-                meeting.agenda.Contains($"Shortcode: {shortCode}") && meeting.topic.StartsWith("CoderDojo Online: "));
+                meeting.agenda != null && meeting.agenda.Contains($"Shortcode: {shortCode}") 
+                && meeting.topic.StartsWith("CoderDojo Online: ") 
+                && meeting.start_time.Year == date.Year
+                && meeting.start_time.Month == date.Month
+                && meeting.start_time.Day == date.Day);
 
         public async Task<IEnumerable<User>> GetUsersAsync()
         {
@@ -85,6 +89,7 @@ namespace CDWPlanner
             };
 
             using var getResponse = await client.SendAsync(meetingRequest);
+            var responseContent = await getResponse.Content.ReadAsStringAsync();
             getResponse.EnsureSuccessStatusCode();
         }
 
