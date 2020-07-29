@@ -44,21 +44,34 @@ workshops:
 |prerequisites  | If they need to install software|
 |mentors        | Probably you|
 
-These following parameter are needed to be created in the Azure function
+
+### That's how your mentors collection need to look like
+// Note: Create for each mentor a new document
+```json
+{
+    "nickname": "Someone's nickname",
+    "email": "someone@something.at",
+    "firstname": "Someone's firstname",
+    "lastname": "Someone's lastname"
+}
+```
+
+### These following parameter are needed to be created in the Azure function
 
 | Setting Parameter        | Description |
 | ------------             | ----------- |
 |`MONGOUSER`               |Your username, you need to have admin rights|
 |`MONGOPASSWORD`           |Your password|
 |`MONGODB`                 |The database name e.g. `member-management-test`|
-|`MONGOCONNECTION`         |The collection name e.g. `events`|
-|`MONGOCOLLECTIONEVENTS`   |A connection string, where your workshops are, for more details check the link down below|
-|`MONGOCOLLECTIONMENTORS`  |A connection string, where your mentors are|
-|`ServiceBusConnection`    |Your have to create a Service-Bus-Connection to communicate with certain functions, for more details check the link down below |
-|`GITHUBUSER`|Name of the repository where you create the yaml files e.g. `coderdojo-linz/coderdojo-online`|
-|`ZOOMTOKEN`|Token is required to connect our software with Zoom|
-|`EMAILAPIKEY`|ApiKey for the email connection|
-|`EMAILSENDER`|Name of the email sender e.g. `info@linz.coderdojo.net`|
+|`MONGOCONNECTION`         |A connection string, where your workshops are, for more details check the link down below|
+|`MONGOCOLLECTIONMEVENTS`  |The collection name of your workshop collection e.g. `events`|
+|`MONGOCOLLECTIONMENTORS`  |The collection name of your mentors collection e.g. `mentor-info`|
+|`ServiceBusConnection`    |Your have to create a Service-Bus-Connection to communicate with certain functions, 
+                            for more details check the link down below |
+|`GITHUBUSER`              |Name of the repository where you create the yaml files e.g. `coderdojo-linz/coderdojo-online`|
+|`ZOOMTOKEN`               |Token is required to connect our software with Zoom|
+|`EMAILAPIKEY`             |ApiKey for the email connection|
+|`EMAILSENDER`             |Name of the email sender e.g. `info@linz.coderdojo.net`|
 
 #### Useful Links
 + Connection-Strings: https://docs.mlab.com/connecting/#connect-string
