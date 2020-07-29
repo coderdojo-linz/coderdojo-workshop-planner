@@ -183,7 +183,7 @@ namespace CDWPlanner.Tests
   zoom: 'linklink'
 - begintime: '12:00'
   endtime: '13:00'
-  status: Draft
+  status: Published
   title: 'Ein Spiel mit Python'
   targetAudience: '8'
   description: >-
@@ -198,7 +198,7 @@ namespace CDWPlanner.Tests
 
             Assert.Equal("13:45", getContent.workshops[0].begintime);
             Assert.Equal("15:45", getContent.workshops[0].endtime);
-            Assert.Equal("Published", getContent.workshops[0].status.ToString().ToLower());
+            Assert.Equal("Published", getContent.workshops[0].status);
             Assert.Equal("Virtuelles Elektronikbasteln mit Raspberry Pi", getContent.workshops[0].title);
             Assert.Equal("ab 8", getContent.workshops[0].targetAudience);
             Assert.Equal("Test", getContent.workshops[0].description);
@@ -207,7 +207,7 @@ namespace CDWPlanner.Tests
             Assert.Equal("linklink", getContent.workshops[0].zoom);
             Assert.Equal("12:00", getContent.workshops[1].begintime);
             Assert.Equal("13:00", getContent.workshops[1].endtime);
-            Assert.Equal("Draft", getContent.workshops[0].status.ToString().ToLower());
+            Assert.Equal("Published", getContent.workshops[0].status);
             Assert.Equal("Ein Spiel mit Python", getContent.workshops[1].title);
             Assert.Equal("8", getContent.workshops[1].targetAudience);
             Assert.Equal("testdes", getContent.workshops[1].description);

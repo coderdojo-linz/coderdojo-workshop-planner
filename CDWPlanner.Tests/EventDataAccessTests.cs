@@ -40,7 +40,7 @@ namespace CDWPlanner.Tests
                   {
                     ""begintime"": ""13:45"",
                     ""endtime"": ""15:45"",
-                    ""status"": ""Draft"",
+                    ""status"": ""Published"",
                     ""title"": ""Test"",
                     ""targetAudience"": ""TestAudience"",
                     ""description"": ""TestDescription *with* markup"",
