@@ -225,7 +225,7 @@ namespace CDWPlanner
             }
 
             var dbEvents = await dataAccess.ReadEventsFromDBAsync(past);
-            return new OkObjectResult(dbEvents);
+            return new OkObjectResult(dbEvents.OrderBy(events => events.date).ToList());
         }
 
         [FunctionName("SendEmails")]
@@ -318,9 +318,11 @@ namespace CDWPlanner
             str.AppendLine("END:STANDARD");
             str.AppendLine("END:VTIMEZONE");
             str.AppendLine("BEGIN:VEVENT");
+            str.AppendLine("X-WR-RELCALID:XXXXXX");
+            str.AppendLine("X-MS-OLK-FORCEINSPECTOROPEN:TRUE");
             str.AppendLine(string.Format("DTSTAMP:{0:yyyyMMddTHHmmssZ}", ExtractDate(w.begintime)));
-            str.AppendLine(string.Format("DTSTART;TZID=Europe/Vienna:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
-            str.AppendLine(string.Format("DTEND;TZID=Europe/Vienna:{0:yyyyMMddTHHmmss}", ExtractDate(w.endtime)));
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine(string.Format("DTEND:{0:yyyyMMddTHHmmss}", ExtractDate(w.endtime)));
             str.AppendLine(string.Format("SUMMARY:{0}", w.titleHtml));
             str.AppendLine("UID:20200727T072232Z-1947992826@marudot.com");
             str.AppendLine("TZID:Europe/Vienna");

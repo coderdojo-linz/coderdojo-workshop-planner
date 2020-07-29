@@ -59,6 +59,7 @@ namespace CDWPlanner
 
             return result;
         }
+        
 
         public async Task<Event> ReadEventForDateFromDBAsync(DateTime date)
         {
