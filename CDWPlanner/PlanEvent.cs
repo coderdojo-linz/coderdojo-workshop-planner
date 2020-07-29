@@ -130,19 +130,20 @@ namespace CDWPlanner
                     log.LogInformation("Updating Meeting");
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
                     w.zoom = existingMeeting.join_url;
+                    w.zoomUser = userId;
                 }
                 else
                 {
                     log.LogInformation("Creating Meeting");
                     var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
                     w.zoom = getLinkData.join_url;
+                    w.zoomUser = userId;
                 }
 
-                w.zoomUser = userId;
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
-            // Build object that can be added to DB
+            // Build object that can be added to DB 
             var eventData = BuildEventDocument(parsedUtcDateEvent, workshopData);
 
             // Check wheather a new file exists, create/or modifie it
