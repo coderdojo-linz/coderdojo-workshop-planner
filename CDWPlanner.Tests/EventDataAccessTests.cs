@@ -23,10 +23,10 @@ namespace CDWPlanner.Tests
             var planZoomMeetingMock = new Mock<IPlanZoomMeeting>();
             planZoomMeetingMock.Setup(z => z.CreateZoomMeetingAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
-            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object, null);
+            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object, null, null);
             await func.Receive(@"
             {
               ""Operation"": ""added"",

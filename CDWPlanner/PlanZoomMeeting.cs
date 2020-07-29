@@ -11,10 +11,10 @@ namespace CDWPlanner
 {
     public interface IPlanZoomMeeting
     {
-        Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID);
+        Task<Meeting> CreateZoomMeetingAsync(string time, string date, string title, string description, string shortCode, string userId);
         Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode, DateTime date);
         Task<IEnumerable<Meeting>> GetExistingMeetingsAsync();
-        void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date);
+        void UpdateMeetingAsync(Meeting meeting, string time, string date, string title, string description, string shortCode, string userId);
         Task<IEnumerable<User>> GetUsersAsync();
         User GetUser(IEnumerable<User> usersBuffer, string zoomUser);
     }
@@ -76,7 +76,7 @@ namespace CDWPlanner
             return JsonSerializer.Deserialize<T>(getJsonContent);
         }
 
-        public async void UpdateMeetingAsync(Meeting meeting, string time, string description, string shortCode, string title, string userId, string date)
+        public async void UpdateMeetingAsync(Meeting meeting, string time, string date, string title, string description, string shortCode, string userId)
         {
             var zoomUrl = $"meetings/{meeting.id}";
             var startTime = $"{date}T{time}:00";
@@ -85,7 +85,7 @@ namespace CDWPlanner
             {
                 RequestUri = new Uri(zoomUrl, UriKind.Relative),
                 Method = HttpMethod.Patch,
-                Content = CreateStringContentForMeeting(description, shortCode, title, userId, startTime, meeting.password)
+                Content = CreateStringContentForMeeting(startTime, title, description, shortCode, meeting.password, userId)
             };
 
             using var getResponse = await client.SendAsync(meetingRequest);
@@ -93,9 +93,9 @@ namespace CDWPlanner
             getResponse.EnsureSuccessStatusCode();
         }
 
-        public async Task<Meeting> CreateZoomMeetingAsync(string time, string description, string shortCode, string title, string userId, string date, string userID)
+        public async Task<Meeting> CreateZoomMeetingAsync(string time, string date, string title, string description, string shortCode, string userId)
         {
-            var zoomUrl = $"users/{userID}/meetings";
+            var zoomUrl = $"users/{userId}/meetings";
             var startTime = $"{date}T{time}:00";
             var randomPsw = CreateRandomPassword(10);
 
@@ -103,7 +103,7 @@ namespace CDWPlanner
             {
                 RequestUri = new Uri(zoomUrl, UriKind.Relative),
                 Method = HttpMethod.Post,
-                Content = CreateStringContentForMeeting(description, shortCode, title, userId, startTime, randomPsw)
+                Content = CreateStringContentForMeeting(startTime, title, description, shortCode, randomPsw, userId)
             };
 
             using var getResponse = await client.SendAsync(meetingRequest);
@@ -112,7 +112,7 @@ namespace CDWPlanner
             return JsonSerializer.Deserialize<Meeting>(getJsonContent);
         }
 
-        private static StringContent CreateStringContentForMeeting(string description, string shortCode, string title, string userId, string startTime, string randomPsw) =>
+        private static StringContent CreateStringContentForMeeting(string startTime, string title, string description, string shortCode, string randomPsw, string userId) =>
             new StringContent(
                 JsonSerializer.Serialize(new
                 {

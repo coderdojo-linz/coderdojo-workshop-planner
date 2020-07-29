@@ -15,11 +15,7 @@ using MongoDB.Bson;
 using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlanner.DTO;
-using Markdig;
 using System.Text;
-using SendGrid;
-using SendGrid.Helpers.Mail;
-using Ical.Net.Serialization;
 
 namespace CDWPlanner
 {
@@ -29,17 +25,19 @@ namespace CDWPlanner
         private readonly IDataAccess dataAccess;
         private readonly IPlanZoomMeeting planZoomMeeting;
         private readonly NewsletterHtmlBuilder htmlBuilder;
+        private readonly EmailContentBuilder emailBuilder;
 
         public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting,
-            NewsletterHtmlBuilder htmlBuilder)
+            NewsletterHtmlBuilder htmlBuilder, EmailContentBuilder emailBuilder)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
+            this.emailBuilder = emailBuilder;
         }
 
-        [FunctionName("PlanEvent")]
+        [FunctionName("AddGitHubContent")]
         public async Task<IActionResult> ReceiveFromGitHub(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             [ServiceBus("workshopupdate", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
@@ -135,7 +133,7 @@ namespace CDWPlanner
                     if (existingMeeting != null)
                     {
                         log.LogInformation("Updating Meeting");
-                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
+                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
                         w.zoom = existingMeeting.join_url;
                         var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
                         w.zoomUser = user.email;
@@ -143,7 +141,7 @@ namespace CDWPlanner
                     else
                     {
                         log.LogInformation("Creating Meeting");
-                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
+                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
                         w.zoom = getLinkData.join_url;
                         w.zoomUser = userId;
                     }
@@ -188,8 +186,8 @@ namespace CDWPlanner
         }
 
         // Get the workshop body array
-        [FunctionName("GetDBContent")]
-        public async Task<IActionResult> Run(
+        [FunctionName("GetDBContentForHtml")]
+        public async Task<IActionResult> GetDBContentForHtml(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger _)
         {
@@ -209,7 +207,7 @@ namespace CDWPlanner
 
         // Get events
         [FunctionName("events")]
-        public async Task<IActionResult> RunEvent(
+        public async Task<IActionResult> GetEvent(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger _)
         {
@@ -224,8 +222,8 @@ namespace CDWPlanner
             return new OkObjectResult(dbEvents.OrderBy(events => events.date).ToList());
         }
 
-        [FunctionName("SendEmails")]
-        public async Task<IActionResult> SendEmails(
+        [FunctionName("SendEmail")]
+        public async Task<IActionResult> SendEmail(
            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
            ILogger _)
         {
@@ -240,121 +238,22 @@ namespace CDWPlanner
             var eventFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
             var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
 
+            var usersBuffer = await planZoomMeeting.GetUsersAsync();
+
             var emailContent = new StringBuilder();
 
             var icsFileContent = new StringBuilder();
             foreach (var w in eventFound.workshops)
             {
-                var firstMentor = await AddWorkshopAndMentorsAsync(emailContent, icsFileContent, w);
+                var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
+                var firstMentor = emailBuilder.BuildEmailAndICSFile(emailContent, icsFileContent, w, user.host_key);
                 if (firstMentor != null)
                 {
-                    await SendEmail(emailContent, icsFileContent, mentorsFromDB, firstMentor);
+                    await emailBuilder.BuildAndSendEmail(emailContent, icsFileContent, mentorsFromDB, firstMentor);
                     emailContent.Clear();
                 }
             }
-
             return new OkObjectResult("Email wurde erfolgreich verschickt");
-        }
-
-        // Build the email string
-        internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, StringBuilder str, Workshop w)
-        {
-            if (w.mentors.Count == 0)
-            {
-                return null;
-            }
-
-            var usersBuffer = await planZoomMeeting.GetUsersAsync();
-            var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
-
-            emailContent.Append($"Hallo {w.mentors[0]}!<br><br>");
-            emailContent.Append($"Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>");
-            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {w.begintimeAsShortTime}<br>Endzeit: {w.endtimeAsShortTime}<br>Beschreibung: {w.descriptionHtml}");
-            emailContent.Append($"<br>Zoom User: {w.zoomUser}<br>Zoom URL: {w.zoom}<br>Dein Hostkey: {user.host_key}<br><br>");
-            emailContent.Append($"Viele Grüße,<br>Dein CoderDojo Organisationsteam");
-
-            // Build ics file
-            str.AppendLine("BEGIN:VCALENDAR");
-            str.AppendLine("VERSION:2.0");
-            str.AppendLine("PRODID:-//ical.marudot.com//iCal Event Maker");
-            str.AppendLine("CALSCALE:GREGORIAN");
-            str.AppendLine("METHOPD:PUBLISH");
-            str.AppendLine("CLASS:PUBLIC");
-            str.AppendLine("BEGIN:VTIMEZONE");
-            str.AppendLine("TZID:Europe/Vienna");
-            str.AppendLine("TZURL:http://tzurl.org/zoneinfo-outlook/Europe/Berlin");
-            str.AppendLine("X-LIC-LOCATION:Europe/Vienna");
-            str.AppendLine("BEGIN:DAYLIGHT");
-            str.AppendLine("TZOFFSETFROM:+0100");
-            str.AppendLine("TZOFFSETTO:+0200");
-            str.AppendLine("TZNAME:CEST");
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
-            str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU");
-            str.AppendLine("END:DAYLIGHT");
-            str.AppendLine("BEGIN:STANDARD");
-            str.AppendLine("TZOFFSETFROM:+0200");
-            str.AppendLine("TZOFFSETTO:+0100");
-            str.AppendLine("TZNAME:CET");
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
-            str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU");
-            str.AppendLine("END:STANDARD");
-            str.AppendLine("END:VTIMEZONE");
-            str.AppendLine("BEGIN:VEVENT");
-            str.AppendLine("X-WR-RELCALID:XXXXXX");
-            str.AppendLine("X-MS-OLK-FORCEINSPECTOROPEN:TRUE");
-            str.AppendLine(string.Format("DTSTAMP:{0:yyyyMMddTHHmmssZ}", w.begintimeAsIcsString));
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
-            str.AppendLine(string.Format("DTEND:{0:yyyyMMddTHHmmss}", w.endtimeAsIcsString));
-            str.AppendLine(string.Format("SUMMARY:{0}", w.titleHtml));
-            str.AppendLine("UID:20200727T072232Z-1947992826@marudot.com");
-            str.AppendLine("TZID:Europe/Vienna");
-            str.AppendLine(string.Format("DESCRIPTION:{0}", w.descriptionHtml));
-            str.AppendLine("LOCATION: Online");
-            str.AppendLine("BEGIN:VALARM");
-            str.AppendLine("TRIGGER:-PT10M");
-            str.AppendLine("ACTION:DISPLAY");
-            str.AppendLine("DESCRIPTION:Reminder");
-            str.AppendLine("END:VALARM");
-            str.AppendLine("END:VEVENT");
-            str.AppendLine("END:VCALENDAR");
-
-            return w.mentors[0];
-        }
-
-        internal async Task SendEmail(StringBuilder content, StringBuilder icsFileContent, IEnumerable<Mentor> mentorsFromDB, string mentor)
-        {
-            var mentors = new Dictionary<string, string>();
-            var apiKey = Environment.GetEnvironmentVariable("EMAILAPIKEY", EnvironmentVariableTarget.Process);
-            var emailSender = Environment.GetEnvironmentVariable("EMAILSENDER", EnvironmentVariableTarget.Process);
-
-            var client = new SendGridClient(apiKey);
-
-            var icsAttachment = new Attachment()
-            {
-                Content = Convert.ToBase64String(Encoding.UTF8.GetBytes(icsFileContent.ToString())),
-                Type = "text/calendar",
-                Filename = "meeting.ics",
-                Disposition = "inline",
-                ContentId = "Attachment"
-            };
-
-            var msg = new SendGridMessage();
-
-            msg.SetFrom(new EmailAddress(emailSender, "CoderDojo"));
-            msg.SetSubject("Dein CoderDojo Online Workshop");
-            msg.AddAttachment(icsAttachment);
-
-            var mentorFromDB = mentorsFromDB.FirstOrDefault(mdb => mdb.firstname == mentor);
-            if (mentorFromDB == null)
-            {
-                return;
-            }
-
-            mentors.Add(mentorFromDB.nickname, mentorFromDB.email);
-            msg.AddTo(new EmailAddress(mentors[mentorFromDB.firstname]));
-            msg.AddContent(MimeType.Text, content.ToString());
-            msg.AddContent(MimeType.Html, content.ToString());
-            var response = await client.SendEmailAsync(msg);
         }
     }
 }
