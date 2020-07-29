@@ -127,20 +127,23 @@ namespace CDWPlanner
                 var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode, parsedDateEvent);
 
                 // Create or update meeting
-                if (existingMeeting != null && w.status == "Scheduled")
+                if (w.status == "Scheduled")
                 {
-                    log.LogInformation("Updating Meeting");
-                    planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
-                    w.zoom = existingMeeting.join_url;
-                    var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
-                    w.zoomUser = user.email;
-                }
-                else if(existingMeeting == null && w.status == "Scheduled")
-                {
-                    log.LogInformation("Creating Meeting");
-                    var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
-                    w.zoom = getLinkData.join_url;
-                    w.zoomUser = userId;
+                    if (existingMeeting != null)
+                    {
+                        log.LogInformation("Updating Meeting");
+                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
+                        w.zoom = existingMeeting.join_url;
+                        var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
+                        w.zoomUser = user.email;
+                    }
+                    else
+                    {
+                        log.LogInformation("Creating Meeting");
+                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);
+                        w.zoom = getLinkData.join_url;
+                        w.zoomUser = userId;
+                    }
                 }
 
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
