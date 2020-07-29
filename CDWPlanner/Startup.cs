@@ -37,6 +37,7 @@ namespace CDWPlanner
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
             builder.Services.AddSingleton<NewsletterHtmlBuilder>();
             builder.Services.AddSingleton<EmailContentBuilder>();
+            builder.Services.AddSingleton<DiscordBot>();
         }
     }
 }

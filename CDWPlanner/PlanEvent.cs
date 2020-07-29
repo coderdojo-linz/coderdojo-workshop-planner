@@ -26,15 +26,17 @@ namespace CDWPlanner
         private readonly IPlanZoomMeeting planZoomMeeting;
         private readonly NewsletterHtmlBuilder htmlBuilder;
         private readonly EmailContentBuilder emailBuilder;
+        private readonly DiscordBot discordBot;
 
         public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting,
-            NewsletterHtmlBuilder htmlBuilder, EmailContentBuilder emailBuilder)
+            NewsletterHtmlBuilder htmlBuilder, EmailContentBuilder emailBuilder, DiscordBot discordBot)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
             this.emailBuilder = emailBuilder;
+            this.discordBot = discordBot;
         }
 
         [FunctionName("AddGitHubContent")]
@@ -137,6 +139,7 @@ namespace CDWPlanner
                         w.zoom = existingMeeting.join_url;
                         var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
                         w.zoomUser = user.email;
+                        discordBot.Message += $"Das Meeting  {w.title} wurde geupdated.\n";
                     }
                     else
                     {
@@ -144,12 +147,14 @@ namespace CDWPlanner
                         var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
                         w.zoom = getLinkData.join_url;
                         w.zoomUser = userId;
+
+                        discordBot.Message += $"Ein neues Meeting wurde erstellt: {w.title}.\n";
                     }
                 }
-
+                discordBot.Message += $"Der Workshop {w.title} wurde hinzugefügt und started am {dateFolder} um {w.begintimeAsShortTime} Uhr.\n";
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
-
+            
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
@@ -162,6 +167,8 @@ namespace CDWPlanner
             }
 
             log.LogInformation("Successfully written data to db");
+
+            await discordBot.DiscordBotMessageReceiver();
         }
 
         // Get the workshop body array
@@ -229,5 +236,7 @@ namespace CDWPlanner
             }
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
+
+
     }
 }
