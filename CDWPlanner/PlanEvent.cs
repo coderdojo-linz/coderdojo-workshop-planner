@@ -116,7 +116,7 @@ namespace CDWPlanner
             var userNum = 0;
             var hostKey = string.Empty;
 
-            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => !ws.draft).OrderBy(ws => ws.begintime))
+            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => ws.status != "Draft").OrderBy(ws => ws.begintime))
             {
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
@@ -127,7 +127,7 @@ namespace CDWPlanner
                 var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode, parsedDateEvent);
 
                 // Create or update meeting
-                if (existingMeeting != null)
+                if (existingMeeting != null && w.status == "Scheduled")
                 {
                     log.LogInformation("Updating Meeting");
                     planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, w.description, w.shortCode, w.title, userId, dateFolder);
@@ -135,7 +135,7 @@ namespace CDWPlanner
                     var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
                     w.zoomUser = user.email;
                 }
-                else
+                else if(existingMeeting == null && w.status == "Scheduled")
                 {
                     log.LogInformation("Creating Meeting");
                     var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, w.description, w.shortCode, w.title, userId, dateFolder, userId);

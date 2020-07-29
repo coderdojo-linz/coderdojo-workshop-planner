@@ -48,7 +48,7 @@ namespace CDWPlanner.DTO
     {
         public string begintime { get; set; }
         public string endtime { get; set; }
-        public bool draft { get; set; }
+        public string status { get; set; }
         public string title { get; set; }
         public string titleHtml => Markdown.ToHtml(title)[3..^5];
         public string targetAudience { get; set; }
