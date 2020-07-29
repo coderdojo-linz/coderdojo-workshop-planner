@@ -67,7 +67,7 @@ namespace CDWPlanner
         }
 
         public User GetUser(IEnumerable<User> usersBuffer, string zoomUser) =>
-            usersBuffer.FirstOrDefault(u => zoomUser == u.email);
+            usersBuffer.Where(u => (zoomUser == u.email) ||  (zoomUser == u.id)).FirstOrDefault();
         
         private async Task<T> GetFromZoomAsync<T>(string url)
         {
