@@ -120,8 +120,8 @@ namespace CDWPlanner
             {
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
-                w.zoom = "Placeholder";
-                w.zoomUser = "Placeholder";
+                w.zoom = string.Empty;
+                w.zoomUser = string.Empty;
 
                 // Find meeting in meeting buffer
                 var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode, parsedDateEvent);
