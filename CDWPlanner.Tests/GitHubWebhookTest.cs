@@ -48,7 +48,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(fileReader.Object, null, null);
+            var planEvent = new PlanEvent(fileReader.Object, null, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
@@ -104,7 +104,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(fileReader.Object, null, null);
+            var planEvent = new PlanEvent(fileReader.Object, null, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
@@ -142,27 +142,6 @@ namespace CDWPlanner.Tests
             builtEvent["location"] = "CoderDojo Online";
             Assert.True(new BsonArray().Count == 0 || new BsonArray() == null);
             builtEvent["location"] += " - Themen werden noch bekannt gegeben";
-        }
-
-        [Fact]
-        public void AddWorkshopHtmlTest()
-        {
-            var ws = new Workshop{ 
-                begintime = new DateTime(2020, 1, 1, 13, 0, 0).ToString("o"),
-                endtime = new DateTime(2020, 1, 1, 14, 0, 0).ToString("o"),
-                description = "*Bar*",
-                title = "Foo",
-                targetAudience = "FooBar"
-            };
-            var builder = new StringBuilder();
-            PlanEvent.AddWorkshopHtml(builder, ws);
-
-            var debugString = "<h3>Foo</h3><p class='subtitle'>13:00 - 14:00<br/>FooBar</p><p><em>Bar</em></p>";
-
-            Debug.WriteLine(builder.ToString());
-            Assert.Contains(
-                debugString,
-                builder.ToString());
         }
 
         [Fact]

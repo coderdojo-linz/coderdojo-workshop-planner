@@ -26,7 +26,7 @@ namespace CDWPlanner.Tests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
-            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object);
+            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object, null);
             await func.Receive(@"
             {
               ""Operation"": ""added"",

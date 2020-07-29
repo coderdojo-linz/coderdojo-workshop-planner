@@ -46,8 +46,15 @@ namespace CDWPlanner.DTO
 
     public class Workshop
     {
+        private string ToIcsString(string time) => DateTime.Parse(time).ToString("yyyyMMddTHHmmss");
+        private string ExtractShortTime(string time) => DateTime.Parse(time).ToString("HH:mm");
+
         public string begintime { get; set; }
+        public string begintimeAsIcsString => ToIcsString(begintime);
+        public string begintimeAsShortTime => ExtractShortTime(begintime);
         public string endtime { get; set; }
+        public string endtimeAsIcsString => ToIcsString(endtime);
+        public string endtimeAsShortTime => ExtractShortTime(endtime);
         public string status { get; set; }
         public string title { get; set; }
         public string titleHtml => Markdown.ToHtml(title)[3..^5];

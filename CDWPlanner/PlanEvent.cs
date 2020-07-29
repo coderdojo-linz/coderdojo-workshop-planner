@@ -28,12 +28,15 @@ namespace CDWPlanner
         private readonly IGitHubFileReader fileReader;
         private readonly IDataAccess dataAccess;
         private readonly IPlanZoomMeeting planZoomMeeting;
+        private readonly NewsletterHtmlBuilder htmlBuilder;
 
-        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting)
+        public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting,
+            NewsletterHtmlBuilder htmlBuilder)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
+            this.htmlBuilder = htmlBuilder;
         }
 
         [FunctionName("PlanEvent")]
@@ -196,24 +199,10 @@ namespace CDWPlanner
             }
 
             var date = req.Query["date"];
-
             var parsedUtcDateEvent = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
             var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
 
-            var workshops = dbEventsFound.workshops;
-            var responseBuilder = new StringBuilder(@"<section class='main'><table width = '100%'>
-                                    <tbody><tr><td>&nbsp;</td><td class='main-td' width='600'>
-			                        <h1>Hallo&nbsp;*|FNAME|*,</h1>
-			                        <p>Diesen Freitag ist wieder CoderDojo-Nachmittag und es sind viele Workshops im Angebot.Hier eine kurze <strong>Orientierungshilfe</strong>:</p>
-                                    ");
-            foreach (var w in workshops)
-            {
-                AddWorkshopHtml(responseBuilder, w);
-            }
-
-            responseBuilder.Append(@"</td><td>&nbsp;</td></tr></tbody></table></section>");
-
-            var responseMessage = responseBuilder.ToString();
+            var responseMessage = htmlBuilder.BuildNewsletterHtml(dbEventsFound.workshops);
 
             return new OkObjectResult(responseMessage);
         }
@@ -267,20 +256,6 @@ namespace CDWPlanner
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
 
-        private static string ExtractTime(string time) => DateTime.Parse(time).ToString("HH:mm");
-        private static string ExtractDate(string time) => DateTime.Parse(time).ToString("yyyyMMddTHHmmss");
-
-        // Build the html string
-        internal static void AddWorkshopHtml(StringBuilder responseBuilder, Workshop w)
-        {
-
-            var bTime = ExtractTime(w.begintime);
-            var eTime = ExtractTime(w.endtime);
-            var timeString = $"{bTime} - {eTime}";
-
-            responseBuilder.Append($@"<h3>{w.titleHtml}</h3><p class='subtitle'>{timeString}<br/>{w.targetAudienceHtml}</p><p>{w.descriptionHtml}</p>");
-        }
-
         // Build the email string
         internal async Task<string> AddWorkshopAndMentorsAsync(StringBuilder emailContent, StringBuilder str, Workshop w)
         {
@@ -294,7 +269,7 @@ namespace CDWPlanner
 
             emailContent.Append($"Hallo {w.mentors[0]}!<br><br>");
             emailContent.Append($"Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>");
-            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {ExtractTime(w.begintime)}<br>Endzeit: {ExtractTime(w.endtime)}<br>Beschreibung: {w.descriptionHtml}");
+            emailContent.Append($"Titel: {w.titleHtml}<br>Startzeit: {w.begintimeAsShortTime}<br>Endzeit: {w.endtimeAsShortTime}<br>Beschreibung: {w.descriptionHtml}");
             emailContent.Append($"<br>Zoom User: {w.zoomUser}<br>Zoom URL: {w.zoom}<br>Dein Hostkey: {user.host_key}<br><br>");
             emailContent.Append($"Viele Grüße,<br>Dein CoderDojo Organisationsteam");
 
@@ -313,23 +288,23 @@ namespace CDWPlanner
             str.AppendLine("TZOFFSETFROM:+0100");
             str.AppendLine("TZOFFSETTO:+0200");
             str.AppendLine("TZNAME:CEST");
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
             str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU");
             str.AppendLine("END:DAYLIGHT");
             str.AppendLine("BEGIN:STANDARD");
             str.AppendLine("TZOFFSETFROM:+0200");
             str.AppendLine("TZOFFSETTO:+0100");
             str.AppendLine("TZNAME:CET");
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
             str.AppendLine("RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU");
             str.AppendLine("END:STANDARD");
             str.AppendLine("END:VTIMEZONE");
             str.AppendLine("BEGIN:VEVENT");
             str.AppendLine("X-WR-RELCALID:XXXXXX");
             str.AppendLine("X-MS-OLK-FORCEINSPECTOROPEN:TRUE");
-            str.AppendLine(string.Format("DTSTAMP:{0:yyyyMMddTHHmmssZ}", ExtractDate(w.begintime)));
-            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", ExtractDate(w.begintime)));
-            str.AppendLine(string.Format("DTEND:{0:yyyyMMddTHHmmss}", ExtractDate(w.endtime)));
+            str.AppendLine(string.Format("DTSTAMP:{0:yyyyMMddTHHmmssZ}", w.begintimeAsIcsString));
+            str.AppendLine(string.Format("DTSTART:{0:yyyyMMddTHHmmss}", w.begintimeAsIcsString));
+            str.AppendLine(string.Format("DTEND:{0:yyyyMMddTHHmmss}", w.endtimeAsIcsString));
             str.AppendLine(string.Format("SUMMARY:{0}", w.titleHtml));
             str.AppendLine("UID:20200727T072232Z-1947992826@marudot.com");
             str.AppendLine("TZID:Europe/Vienna");

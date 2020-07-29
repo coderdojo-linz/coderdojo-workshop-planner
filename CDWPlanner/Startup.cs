@@ -35,6 +35,7 @@ namespace CDWPlanner
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
             builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
+            builder.Services.AddSingleton<NewsletterHtmlBuilder>();
         }
     }
 }
