@@ -12,8 +12,8 @@ namespace CDWPlanner
     public interface IDataAccess
     {
         Task<Event> ReadEventForDateFromDBAsync(DateTime date);
-        Task InsertIntoDBAsync(BsonDocument eventData);
-        Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData);
+        Task InsertIntoDBAsync(DateTime parsedDateEvent, BsonArray workshopData);
+        Task ReplaceDataOfDBAsync(DateTime parsedDateEvent, BsonArray workshopData);
         Task<IEnumerable<Event>> ReadEventsFromDBAsync(bool past);
         Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync();
     };
@@ -59,7 +59,24 @@ namespace CDWPlanner
 
             return result;
         }
-        
+
+        // Build the data for the database
+        internal static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
+        {
+            var eventData = new BsonDocument();
+            eventData.AddRange(new Dictionary<string, object> {
+                { "date", parsedDateEvent },
+                { "type", "CoderDojo Virtual" },
+                { "location", "CoderDojo Online" },
+                { "workshops", workshopData}
+            });
+
+            if (workshopData == null || workshopData.Count == 0)
+            {
+                eventData["location"] += " - Themen werden noch bekannt gegeben";
+            }
+            return eventData;
+        }
 
         public async Task<Event> ReadEventForDateFromDBAsync(DateTime date)
         {
@@ -86,13 +103,13 @@ namespace CDWPlanner
         public async Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync() =>
             await ReadFromDBAsync<Mentor>(collectionMentors, new BsonDocument());
 
-        public async Task InsertIntoDBAsync(BsonDocument eventData) =>
-            await collectionEvents.InsertOneAsync(eventData);
+        public async Task InsertIntoDBAsync(DateTime parsedDateEvent, BsonArray workshopData) =>
+            await collectionEvents.InsertOneAsync(BuildEventDocument(parsedDateEvent, workshopData));
 
-        public async Task ReplaceDataOfDBAsync(DateTime date, BsonDocument eventData)
+        public async Task ReplaceDataOfDBAsync(DateTime parsedDateEvent, BsonArray workshopData)
         {
-            var dateFilter = new BsonDocument("date", date);
-            await collectionEvents.ReplaceOneAsync(dateFilter, eventData);
+            var dateFilter = new BsonDocument("date", parsedDateEvent);
+            await collectionEvents.ReplaceOneAsync(dateFilter, BuildEventDocument(parsedDateEvent, workshopData));
         }
     }
 }

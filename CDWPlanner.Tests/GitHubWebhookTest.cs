@@ -124,7 +124,7 @@ namespace CDWPlanner.Tests
         [Fact]
         public void BuildEventDocument()
         {
-            var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
+            var builtEvent = DataAccess.BuildEventDocument(new DateTime(2020, 12, 31),
                 new BsonArray(new[] { "Foo", "Bar" }));
 
             Assert.Equal(new DateTime(2020, 12, 31), builtEvent["date"]);
@@ -136,7 +136,7 @@ namespace CDWPlanner.Tests
         [Fact]
         public void BuildEventDocumentWithoutWorkshops()
         {
-            var builtEvent = PlanEvent.BuildEventDocument(new DateTime(2020, 12, 31),
+            var builtEvent = DataAccess.BuildEventDocument(new DateTime(2020, 12, 31),
                 new BsonArray());
 
             builtEvent["location"] = "CoderDojo Online";

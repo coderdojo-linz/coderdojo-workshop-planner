@@ -17,9 +17,9 @@ namespace CDWPlanner.Tests
             var dataAccessMock = new Mock<IDataAccess>();
             dataAccessMock.Setup(da => da.ReadEventForDateFromDBAsync(It.IsAny<DateTime>()))
                 .Returns(Task.FromResult<Event>(null));
-            BsonDocument insertedDocument = null;
-            dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()))
-                .Callback<BsonDocument>(doc => insertedDocument = doc);
+            BsonArray insertedDocument = null;
+            dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<DateTime>(), It.IsAny<BsonArray>()))
+                .Callback<DateTime, BsonArray>((_, arr) => insertedDocument = arr);
             var planZoomMeetingMock = new Mock<IPlanZoomMeeting>();
             planZoomMeetingMock.Setup(z => z.CreateZoomMeetingAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
@@ -27,7 +27,7 @@ namespace CDWPlanner.Tests
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
             var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object, null, null);
-            await func.Receive(@"
+            await func.WriteEventToDB(@"
             {
               ""Operation"": ""added"",
               ""FolderInfo"": {
@@ -55,9 +55,9 @@ namespace CDWPlanner.Tests
             }", Mock.Of<ILogger>());
 
             dataAccessMock.Verify(da => da.ReadEventForDateFromDBAsync(It.IsAny<DateTime>()), Times.Once);
-            dataAccessMock.Verify(da => da.InsertIntoDBAsync(It.IsAny<BsonDocument>()), Times.Once);
+            dataAccessMock.Verify(da => da.InsertIntoDBAsync(It.IsAny<DateTime>(), It.IsAny<BsonArray>()), Times.Once);
 
-            Assert.Single(insertedDocument["workshops"] as BsonArray);
+            Assert.Single(insertedDocument);
         }
 
         [Fact]

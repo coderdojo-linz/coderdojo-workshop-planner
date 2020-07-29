@@ -84,7 +84,7 @@ namespace CDWPlanner
         // Subscribtion of PlanEvent Topic
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
-        public async Task Receive(
+        public async Task WriteEventToDB(
             [ServiceBusTrigger("workshopupdate", "transfer-to-db", Connection = "ServiceBusConnection")] string workshopJson,
             ILogger log)
         {
@@ -150,39 +150,18 @@ namespace CDWPlanner
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
 
-            // Build object that can be added to DB 
-            var eventData = BuildEventDocument(parsedUtcDateEvent, workshopData);
-
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
-                await dataAccess.InsertIntoDBAsync(eventData);
+                await dataAccess.InsertIntoDBAsync(parsedUtcDateEvent, workshopData);
                 found = true;
             }
             else if (operation == "modified" || found == true)
             {
-                await dataAccess.ReplaceDataOfDBAsync(parsedUtcDateEvent, eventData);
+                await dataAccess.ReplaceDataOfDBAsync(parsedUtcDateEvent, workshopData);
             }
 
             log.LogInformation("Successfully written data to db");
-        }
-
-        // Build the data for the database
-        internal static BsonDocument BuildEventDocument(DateTime parsedDateEvent, BsonArray workshopData)
-        {
-            var eventData = new BsonDocument();
-            eventData.AddRange(new Dictionary<string, object> {
-                { "date", parsedDateEvent },
-                { "type", "CoderDojo Virtual" },
-                { "location", "CoderDojo Online" },
-                { "workshops", workshopData}
-            });
-
-            if (workshopData == null || workshopData.Count == 0)
-            {
-                eventData["location"] += " - Themen werden noch bekannt gegeben";
-            }
-            return eventData;
         }
 
         // Get the workshop body array
@@ -207,7 +186,7 @@ namespace CDWPlanner
 
         // Get events
         [FunctionName("events")]
-        public async Task<IActionResult> GetEvent(
+        public async Task<IActionResult> GetEvents(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger _)
         {
@@ -239,18 +218,13 @@ namespace CDWPlanner
             var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
 
             var usersBuffer = await planZoomMeeting.GetUsersAsync();
-
-            var emailContent = new StringBuilder();
-
-            var icsFileContent = new StringBuilder();
             foreach (var w in eventFound.workshops)
             {
                 var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
-                var firstMentor = emailBuilder.BuildEmailAndICSFile(emailContent, icsFileContent, w, user.host_key);
-                if (firstMentor != null)
+                var result = emailBuilder.BuildEmailAndICSFile(w, user.host_key);
+                if (result.MentorName != null)
                 {
-                    await emailBuilder.BuildAndSendEmail(emailContent, icsFileContent, mentorsFromDB, firstMentor);
-                    emailContent.Clear();
+                    await emailBuilder.BuildAndSendEmail(result, mentorsFromDB);
                 }
             }
             return new OkObjectResult("Email wurde erfolgreich verschickt");

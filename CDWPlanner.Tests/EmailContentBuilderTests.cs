@@ -15,9 +15,6 @@ namespace CDWPlanner.Tests
         [Fact]
         public void BuildEmailTest()
         {
-            var builder = new StringBuilder();
-            var builderIcs = new StringBuilder();
-
             var ws = new Workshop
             {
                 begintime = new DateTime(2020, 1, 1, 13, 0, 0).ToString("o"),
@@ -31,14 +28,14 @@ namespace CDWPlanner.Tests
 
             };
             var emailBuilder = new EmailContentBuilder();
-            var mentor = emailBuilder.BuildEmailAndICSFile(builder, builderIcs, ws, "dummyhostkey");
+            var result = emailBuilder.BuildEmailAndICSFile(ws, "dummyhostkey");
 
             var debugString = @$"Hallo {ws.mentors[0]}!<br><br>Danke, dass du einen Workshop beim Online CoderDojo anbietest. In diesem Email erhältst du alle Zugangsdaten:<br><br>Titel: {ws.titleHtml}<br>Startzeit: {ws.begintimeAsShortTime}<br>Endzeit: {ws.endtimeAsShortTime}<br>Beschreibung: {ws.descriptionHtml}<br>Zoom User: {ws.zoomUser}<br>Zoom URL: {ws.zoom}<br>Dein Hostkey: dummyhostkey<br><br>Viele Grüße,<br>Dein CoderDojo Organisationsteam";
 
-            Debug.WriteLine(builder.ToString());
+            Debug.WriteLine(result.EmailContent);
             Assert.Contains(
                 debugString,
-                builder.ToString());
+                result.EmailContent);
         }
     }
 }
