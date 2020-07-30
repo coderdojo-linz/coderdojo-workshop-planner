@@ -150,11 +150,11 @@ namespace CDWPlanner
                     }
                 }
 
-                BuildBotMessage(w, dbEventsFound, existingMeeting, dateFolder);
-                await discordBot.DiscordBotMessageSender();
+                var msg = discordBot.BuildBotMessage(w, dbEventsFound, existingMeeting, parsedDateEvent);
+                await discordBot.SendDiscordBotMessage(msg);
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
-            
+
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
@@ -168,54 +168,6 @@ namespace CDWPlanner
 
             log.LogInformation("Successfully written data to db");
 
-        }
-
-        internal void BuildBotMessage(Workshop w, Event found, Meeting existingMeetings, string date)
-        {
-            foreach(var eventFound in found.workshops)
-            {
-                if(w.shortCode == eventFound.shortCode && w.status == "Published")
-                {
-                    if(w.title == eventFound.title)
-                    {
-                        if(w.description == eventFound.description)
-                        {
-                            if(w.begintime == eventFound.begintime)
-                            {
-                                if(w.prerequisites == eventFound.prerequisites)
-                                {
-                                    discordBot.Message = string.Empty;
-                                }
-                                else
-                                {
-                                    discordBot.Message = $"! Die Workshop Voraussetzungen wurden geändert.\n";
-                                }
-                            }
-                            else
-                            {
-                                discordBot.Message = $"! Die Startzeit vom Workshop {w.title} wurde geändert. Er beginnt um {w.begintime}\n";
-                            }
-                        }
-                        else
-                        {
-                            discordBot.Message = $"! Der Workshop hat nun eine neue Beschreibung.\n";
-                        }
-                    }
-                    else
-                    {
-                        discordBot.Message = $"! Der Title des Workshops ist nun {w.title}.\n";
-                    }
-                }
-                if(found == null)
-                {
-                    discordBot.Message = $"Der Workshop {w.title} wurde hinzugefügt und started am {date} um {w.begintimeAsShortTime} Uhr.\n";
-                }
-                if(w.shortCode == eventFound.shortCode && w.status == "Scheduled" && existingMeetings == null)
-                {
-                    discordBot.Message = $"Es gibt nun einen Zoom-Link für den Workshop {w.title}: {w.zoom}\n";
-                }
-            }
-            
         }
 
         // Get the workshop body array

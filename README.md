@@ -1,6 +1,31 @@
-## CoderDojo Workshop Planer
+# CoderDojo Workshop Planer
 
 ![Deploy CDW-Planner to Azure Function App](https://github.com/coderdojo-linz/coderdojo-workshop-planner/workflows/Deploy%20CDW-Planner%20to%20Azure%20Function%20App/badge.svg)
+
+## Welcome Information
+
+Hello person, who is slightly interested in programming. This is our CoderDojo Workshop Planer.
+What? You don't know what that is? You don't even know what the CoderDojo is?
+
+Well here's a short summary about the CoderDojo and this Project.
+
+### What's the CoderDojo?
+
+The CoderDojo is a programming club for kids and teens for 6 - 17 years in Linz/ Leonding.
+We meet every two weeks for our normal CoderDojo and every other week for a Playground.
+You can work on a project yourself or with our mentors or friends.
+You don't have the slightest idea about programming? 
+Well don't worry, our mentors will help you and beginners are going to start with Scratch (if you want).
+
+### What's the Online CoderDojo?
+
+Since quarantine, we weren't able to do our usual CoderDojo meeting, so we changed it to Zoom meetings every week.
+
+### How were the meetings organized before the Workshop Planer?
+
+Before this glorious project, all the meetings had to be organized manually. 
+It was a lot of work
+
 
 ### How to construct a correct workshop plan
 
@@ -37,12 +62,13 @@ workshops:
 | ------------  | ----------- |
 |begintime      |`00:00` e.g 13:45|
 |endtime        |`00:00` e.g 15:45|
-|status         | If the workshop is not fixed, set `Draft`, if you want to publish it to, but don't want the Zomm meetings yet, set `Published`, if everythings correct and you want to create Zoom meetings, set `Scheduled`|
+|status         | If the workshop is not fixed, set `Draft`, if you want to publish it too, but don't want the Zomm meetings yet, set `Published`, if everythings correct and you want to create Zoom meetings, set `Scheduled`|
 |title          | e.g Scratch|
 |targetAudience | e.g kids above 6 years|
 |description    | describe your workshop in some sentences|
 |prerequisites  | If they need to install software|
 |mentors        | Probably you|
+|shortcode      | A word that describes your workshop e.g `Elektronikbasteln`. Note: Your are `not` allowed to change the shortcode once you commited the file|
 
 
 ### That's how your mentors collection need to look like
