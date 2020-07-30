@@ -121,6 +121,7 @@ namespace CDWPlanner
 
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => ws.status != "Draft").OrderBy(ws => ws.begintime))
             {
+
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
                 w.zoom = string.Empty;
@@ -139,7 +140,6 @@ namespace CDWPlanner
                         w.zoom = existingMeeting.join_url;
                         var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
                         w.zoomUser = user.email;
-                        discordBot.Message += $"Das Meeting  {w.title} wurde geupdated.\n";
                     }
                     else
                     {
@@ -147,11 +147,11 @@ namespace CDWPlanner
                         var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
                         w.zoom = getLinkData.join_url;
                         w.zoomUser = userId;
-
-                        discordBot.Message += $"Ein neues Meeting wurde erstellt: {w.title}.\n";
                     }
                 }
-                discordBot.Message += $"Der Workshop {w.title} wurde hinzugefügt und started am {dateFolder} um {w.begintimeAsShortTime} Uhr.\n";
+
+                BuildBotMessage(w, dbEventsFound, dateFolder);
+                await discordBot.DiscordBotMessageReceiver();
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
             
@@ -168,7 +168,54 @@ namespace CDWPlanner
 
             log.LogInformation("Successfully written data to db");
 
-            await discordBot.DiscordBotMessageReceiver();
+        }
+
+        internal void BuildBotMessage(Workshop w, Event found, string date)
+        {
+            foreach(var eventFound in found.workshops)
+            {
+                if(w.shortCode == eventFound.shortCode && w.status == "Published")
+                {
+                    if(w.title == eventFound.title)
+                    {
+                        if(w.description == eventFound.description)
+                        {
+                            if(w.begintime == eventFound.begintime)
+                            {
+                                if(w.prerequisites == eventFound.prerequisites)
+                                {
+                                    discordBot.Message = string.Empty;
+                                }
+                                else
+                                {
+                                    discordBot.Message = $"! Die Workshop Voraussetzungen wurden geändert.\n";
+                                }
+                            }
+                            else
+                            {
+                                discordBot.Message = $"! Die Startzeit vom Workshop {w.title} wurde geändert. Er beginnt um {w.begintime}\n";
+                            }
+                        }
+                        else
+                        {
+                            discordBot.Message = $"! Der Workshop hat nun eine neue Beschreibung.\n";
+                        }
+                    }
+                    else
+                    {
+                        discordBot.Message = $"! Der Title des Workshops ist nun {w.title}.\n";
+                    }
+                }
+                if(found == null)
+                {
+                    discordBot.Message = $"Der Workshop {w.title} wurde hinzugefügt und started am {date} um {w.begintimeAsShortTime} Uhr.\n";
+                }
+                if(w.shortCode == eventFound.shortCode && w.status == "Scheduled")
+                {
+                    discordBot.Message = $"Es gibt nun einen Zoom-Link für den Workshop {w.title}: {w.zoom}\n";
+                }
+            }
+            
         }
 
         // Get the workshop body array

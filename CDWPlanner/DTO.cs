@@ -78,7 +78,9 @@ namespace CDWPlanner.DTO
                 { "prerequisites" , prerequisites},
                 { "mentors", new BsonArray(mentors)},
                 { "zoomUser" , zoomUser },
-                { "zoom" , zoom }
+                { "zoom" , zoom },
+                { "shortCode" , shortCode }
+
             };
     }
 

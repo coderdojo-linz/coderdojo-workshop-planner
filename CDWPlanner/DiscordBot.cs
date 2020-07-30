@@ -1,83 +1,36 @@
-﻿using Discord;
-using Discord.WebSocket;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Channels;
+﻿using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace CDWPlanner
 {
     public class DiscordBot
     {
-        private DiscordSocketClient _client;
-        private ILogger log;
         public string Message;
+        private readonly HttpClient client;
 
-        [FunctionName("SendMessage")]
+        public DiscordBot(IHttpClientFactory clientFactory)
+        {
+            client = clientFactory.CreateClient("zoom");
+        }
+
         public async Task DiscordBotMessageReceiver()
         {
-            _client = new DiscordSocketClient();
-            _client.Log += Log;
-
-            var token = "NzM2MTQ3MTExMDIzNzM4ODkx.XxqkbA.IEbI3N5FSirnTJG9Ji9kYmfDFPM";
-
-            // var token = Environment.GetEnvironmentVariable("NameOfYourEnvironmentVariable");
-
-            await _client.LoginAsync(TokenType.Bot, token);
-            await _client.StartAsync();
-
-            _client.MessageReceived += MessageReceived;
-
-            //ulong channel = _client.GetChannel(737991344160636989) as Channel;
-            //SendMessageToChannel(channel, msg);
-            // Block this task until the program is closed.
-            await Task.Delay(-1);
-        }
-        private Task Log(LogMessage msg)
-        {
-            Console.WriteLine(msg.ToString());
-            return Task.CompletedTask;
-        }
-/*
-        public async Task MessageReceived(DiscordSocketClient client, string msg)
-        {
-            try
+            var discordUrl = @"https://discordapp.com/api/webhooks/738263739391934536/WhTtOIUU-0PDW0HQlNsMAdEF6Q0PrtYagtTLFm6ewU8otPo8SyKNL8CXRaFbBj7v91lP";
+            var meetingRequest = new HttpRequestMessage
             {
-                var id = 737991344160636989;
-                var botChannel = (IGuildChannel)client.GetChannel(737991344160636989);
-
-                if (botChannel == null)
+                RequestUri = new Uri(discordUrl),
+                Method = HttpMethod.Post,
+                Content = new StringContent(
+                JsonSerializer.Serialize(new
                 {
-                    log.LogInformation($"Nachricht konnte nich gesendet werden: Kanal {id} nicht gefunden!");
-                    return;
-                }
-
-                if (botChannel is IMessageChannel messageChannel)
-                {
-                    log.LogInformation($"Nachricht wird an #{botChannel.Name} - {botChannel.Guild.Name} gesendet.");
-
-                    await messageChannel.SendMessageAsync(msg);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Guess we dont have this channel anymore ¯\_(ツ)_/¯
-                log.LogInformation($"Nachricht konnte nich gesendet werden: {ex}");
-            }
+                    content = $"{Message}"
+                }), Encoding.UTF8, "application/json")
+             };
+            using var getResponse = await client.SendAsync(meetingRequest);
+            getResponse.EnsureSuccessStatusCode();
         }
-        */
-
-        private async Task MessageReceived(SocketMessage message)
-        {
-            if (message.Content == "!events")
-            {
-                await message.Channel.SendMessageAsync(Message);
-            }
-        }
-        
     }
 }
