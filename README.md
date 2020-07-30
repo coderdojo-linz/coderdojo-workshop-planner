@@ -19,18 +19,18 @@
 
 ```yml
 workshops:
-- begintime: 'your time'
-  endtime: 'your time'
+- begintime: your time
+  endtime: your time
   status: Draft/Published/Scheduled
   title: yourtitle
-  targetAudience: 'your audience'
-  description: >- 
+  targetAudience: your audience
+  description: |
     your describtion
-  prerequisites: >-
+  prerequisites: |
     - your prerequisites + links
   mentors:
     - you
-  zoom: 'zoomlink'
+  shortcode: your-shortcode
 ```
 
 | Parameter     | Description |
