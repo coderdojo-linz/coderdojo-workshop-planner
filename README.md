@@ -12,7 +12,7 @@
 #### Create the YML File
 
 + File must be named `PLAN.yml` or `plan.yml`.
-+ It must be a `.yml` or `.yaml` file
++ It must be a `.yml` or `.yaml` file.
 + Insert your workshop data in that file. <br><b>Do not create a file for every single workshop!</b>
 
 #### Syntax
