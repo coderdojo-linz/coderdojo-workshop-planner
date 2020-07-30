@@ -26,15 +26,17 @@ namespace CDWPlanner
         private readonly IPlanZoomMeeting planZoomMeeting;
         private readonly NewsletterHtmlBuilder htmlBuilder;
         private readonly EmailContentBuilder emailBuilder;
+        private readonly DiscordBot discordBot;
 
         public PlanEvent(IGitHubFileReader fileReader, IDataAccess dataAccess, IPlanZoomMeeting planZoomMeeting,
-            NewsletterHtmlBuilder htmlBuilder, EmailContentBuilder emailBuilder)
+            NewsletterHtmlBuilder htmlBuilder, EmailContentBuilder emailBuilder, DiscordBot discordBot)
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
             this.emailBuilder = emailBuilder;
+            this.discordBot = discordBot;
         }
 
         [FunctionName("AddGitHubContent")]
@@ -119,6 +121,7 @@ namespace CDWPlanner
 
             foreach (var w in workshopOperation.Workshops.workshops.Where(ws => ws.status != "Draft").OrderBy(ws => ws.begintime))
             {
+
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
                 w.zoom = string.Empty;
@@ -147,9 +150,11 @@ namespace CDWPlanner
                     }
                 }
 
+                BuildBotMessage(w, dbEventsFound, existingMeeting, dateFolder);
+                await discordBot.DiscordBotMessageSender();
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
-
+            
             // Check wheather a new file exists, create/or modifie it
             if (operation == "added" || found == false)
             {
@@ -162,6 +167,55 @@ namespace CDWPlanner
             }
 
             log.LogInformation("Successfully written data to db");
+
+        }
+
+        internal void BuildBotMessage(Workshop w, Event found, Meeting existingMeetings, string date)
+        {
+            foreach(var eventFound in found.workshops)
+            {
+                if(w.shortCode == eventFound.shortCode && w.status == "Published")
+                {
+                    if(w.title == eventFound.title)
+                    {
+                        if(w.description == eventFound.description)
+                        {
+                            if(w.begintime == eventFound.begintime)
+                            {
+                                if(w.prerequisites == eventFound.prerequisites)
+                                {
+                                    discordBot.Message = string.Empty;
+                                }
+                                else
+                                {
+                                    discordBot.Message = $"! Die Workshop Voraussetzungen wurden geändert.\n";
+                                }
+                            }
+                            else
+                            {
+                                discordBot.Message = $"! Die Startzeit vom Workshop {w.title} wurde geändert. Er beginnt um {w.begintime}\n";
+                            }
+                        }
+                        else
+                        {
+                            discordBot.Message = $"! Der Workshop hat nun eine neue Beschreibung.\n";
+                        }
+                    }
+                    else
+                    {
+                        discordBot.Message = $"! Der Title des Workshops ist nun {w.title}.\n";
+                    }
+                }
+                if(found == null)
+                {
+                    discordBot.Message = $"Der Workshop {w.title} wurde hinzugefügt und started am {date} um {w.begintimeAsShortTime} Uhr.\n";
+                }
+                if(w.shortCode == eventFound.shortCode && w.status == "Scheduled" && existingMeetings == null)
+                {
+                    discordBot.Message = $"Es gibt nun einen Zoom-Link für den Workshop {w.title}: {w.zoom}\n";
+                }
+            }
+            
         }
 
         // Get the workshop body array
@@ -229,5 +283,7 @@ namespace CDWPlanner
             }
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
+
+
     }
 }
