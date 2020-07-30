@@ -11,26 +11,36 @@ namespace CDWPlanner
         public string Message;
         private readonly HttpClient client;
 
-        public DiscordBot(IHttpClientFactory clientFactory)
+        public DiscordBot(IHttpClientFactory clientFactory, string message)
         {
-            client = clientFactory.CreateClient("zoom");
+            client = clientFactory.CreateClient("discord");
+            Message = message;
         }
 
-        public async Task DiscordBotMessageReceiver()
+        public async Task DiscordBotMessageSender()
         {
-            var discordUrl = @"https://discordapp.com/api/webhooks/738263739391934536/WhTtOIUU-0PDW0HQlNsMAdEF6Q0PrtYagtTLFm6ewU8otPo8SyKNL8CXRaFbBj7v91lP";
-            var meetingRequest = new HttpRequestMessage
+            var discordUrl = @"738263739391934536/WhTtOIUU-0PDW0HQlNsMAdEF6Q0PrtYagtTLFm6ewU8otPo8SyKNL8CXRaFbBj7v91lP";
+            if (Message == null)
             {
-                RequestUri = new Uri(discordUrl),
-                Method = HttpMethod.Post,
-                Content = new StringContent(
-                JsonSerializer.Serialize(new
+                Console.WriteLine("Nothing changed");
+            }
+            else
+            {
+                var meetingRequest = new HttpRequestMessage
                 {
-                    content = $"{Message}"
-                }), Encoding.UTF8, "application/json")
-             };
-            using var getResponse = await client.SendAsync(meetingRequest);
-            getResponse.EnsureSuccessStatusCode();
+                    RequestUri = new Uri(discordUrl, UriKind.Relative),
+                    Method = HttpMethod.Post,
+                    Content = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        content = $"{Message}"
+                    }), Encoding.UTF8, "application/json")
+                };
+                using var getResponse = await client.SendAsync(meetingRequest);
+                getResponse.EnsureSuccessStatusCode();
+                Console.WriteLine("Something changed. Check out Discord for more infos");
+            }
         }
+
     }
 }

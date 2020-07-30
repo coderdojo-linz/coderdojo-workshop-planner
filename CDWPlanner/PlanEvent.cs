@@ -150,8 +150,8 @@ namespace CDWPlanner
                     }
                 }
 
-                BuildBotMessage(w, dbEventsFound, dateFolder);
-                await discordBot.DiscordBotMessageReceiver();
+                BuildBotMessage(w, dbEventsFound, existingMeeting, dateFolder);
+                await discordBot.DiscordBotMessageSender();
                 workshopData.Add(w.ToBsonDocument(parsedDateEvent));
             }
             
@@ -170,7 +170,7 @@ namespace CDWPlanner
 
         }
 
-        internal void BuildBotMessage(Workshop w, Event found, string date)
+        internal void BuildBotMessage(Workshop w, Event found, Meeting existingMeetings, string date)
         {
             foreach(var eventFound in found.workshops)
             {
@@ -210,7 +210,7 @@ namespace CDWPlanner
                 {
                     discordBot.Message = $"Der Workshop {w.title} wurde hinzugefügt und started am {date} um {w.begintimeAsShortTime} Uhr.\n";
                 }
-                if(w.shortCode == eventFound.shortCode && w.status == "Scheduled")
+                if(w.shortCode == eventFound.shortCode && w.status == "Scheduled" && existingMeetings == null)
                 {
                     discordBot.Message = $"Es gibt nun einen Zoom-Link für den Workshop {w.title}: {w.zoom}\n";
                 }
