@@ -20,13 +20,19 @@ namespace CDWPlanner.Tests
             BsonArray insertedDocument = null;
             dataAccessMock.Setup(da => da.InsertIntoDBAsync(It.IsAny<DateTime>(), It.IsAny<BsonArray>()))
                 .Callback<DateTime, BsonArray>((_, arr) => insertedDocument = arr);
+
             var planZoomMeetingMock = new Mock<IPlanZoomMeeting>();
             planZoomMeetingMock.Setup(z => z.CreateZoomMeetingAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
+            
+            var discordBotMock = new Mock<IDiscordBot>();
+            discordBotMock.Setup(d => d.BuildBotMessage(
+                It.IsAny<Workshop>(), It.IsAny<Event>(), It.IsAny<Meeting>(), It.IsAny<DateTime>()))
+                .Returns("Test");
 
-            var func = new PlanEvent(null, dataAccessMock.Object, planZoomMeetingMock.Object, null, null);
+            var func = new PlanEvent(dataAccessMock.Object, discordBotMock.Object, null, planZoomMeetingMock.Object, null, null);
             await func.WriteEventToDB(@"
             {
               ""Operation"": ""added"",
@@ -46,9 +52,9 @@ namespace CDWPlanner.Tests
                     ""description"": ""TestDescription *with* markup"",
                     ""prerequisites"": ""TestPrerequisites"",
                     ""mentors"": [ ""Foo"", ""Bar"" ],
-                    ""shortCode"": ""Test"",
                     ""zoomUser"": ""Test"",
-                    ""zoom"": ""Test""
+                    ""zoom"": ""Test"",
+                    ""shortCode"": ""Test""
                   }
                 ]
               }
@@ -72,7 +78,8 @@ namespace CDWPlanner.Tests
                 targetAudience = "TestAudience",
                 title = "Test",
                 zoomUser = "Test",
-                zoom = "Test"
+                zoom = "Test",
+                shortCode = "Test"
             };
 
             var bsonDocument = workshop.ToBsonDocument(new DateTime(2010, 1, 1));
@@ -86,6 +93,7 @@ namespace CDWPlanner.Tests
             Assert.Equal(workshop.title, bsonDocument["title"]);
             Assert.Equal(workshop.zoomUser, bsonDocument["zoomUser"]);
             Assert.Equal(workshop.zoom, bsonDocument["zoom"]);
+            Assert.Equal(workshop.shortCode, bsonDocument["zoom"]);
         }
     }
 }

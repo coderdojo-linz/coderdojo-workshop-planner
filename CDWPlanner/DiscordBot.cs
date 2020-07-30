@@ -9,7 +9,13 @@ using System.Threading.Tasks;
 
 namespace CDWPlanner
 {
-    public class DiscordBot
+    public interface IDiscordBot
+    {
+        Task SendDiscordBotMessage(string msg);
+        string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date);
+    };
+
+    public class DiscordBot : IDiscordBot
     {
         private readonly HttpClient client;
 
@@ -60,7 +66,7 @@ namespace CDWPlanner
 
             if (currentWS.title != wsFromDB.title)
             {
-                return $"Der Titel des Workshops '{wsFromDB.title}' lautet nun '{currentWS.title}'.\n";
+                return $"Der Titel des *Workshops* '{wsFromDB.title}' lautet nun '{currentWS.title}' :thumbsup:.\n";
             }
 
             if (currentWS.description != wsFromDB.description)
