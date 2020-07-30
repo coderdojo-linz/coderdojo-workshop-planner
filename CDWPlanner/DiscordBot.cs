@@ -1,5 +1,6 @@
 ﻿using CDWPlanner.DTO;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
@@ -26,6 +27,7 @@ namespace CDWPlanner
 
         public async Task SendDiscordBotMessage(string msg)
         {
+            var info = "Hey :wave:, hier ist ein Update zu einem Online CoderDojo Workshop: :point_down: \n";
             if (msg == "")
             {
                 Debug.WriteLine("Nothing changed");
@@ -37,7 +39,7 @@ namespace CDWPlanner
                 Content = new StringContent(
                 JsonSerializer.Serialize(new
                 {
-                    content = msg
+                    content = $"{info}{msg}"
                 }), Encoding.UTF8, "application/json")
             };
             using var getResponse = await client.SendAsync(meetingRequest);
@@ -48,10 +50,11 @@ namespace CDWPlanner
 
         public string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date)
         {
+            var reaction = ":tada:";
             // Event does not exist yet -> workshop must be new
             if (cdEvent == null)
             {
-                return $"Der Workshop '{currentWS.title}' wurde hinzugefügt und startet am {date:dd.MM.yyyy} um {currentWS.begintimeAsShortTime} Uhr.\n";
+                return $"Der Workshop **{currentWS.title}** wurde hinzugefügt und startet am **{date:dd.MM.yyyy}** um **{currentWS.begintimeAsShortTime}** Uhr.{reaction}\n";
             }
 
             var wsFromDB = cdEvent.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWS.shortCode);
@@ -59,34 +62,62 @@ namespace CDWPlanner
             // Workshop does not exist yet
             if (wsFromDB == null)
             {
-                return $"Der Workshop '{currentWS.title}' wurde hinzugefügt und startet am {date:dd.MM.yyyy} um {currentWS.begintimeAsShortTime} Uhr.\n";
+                return $"Der Workshop **{currentWS.title}** wurde hinzugefügt und startet am **{date:dd.MM.yyyy}** um **{currentWS.begintimeAsShortTime}** Uhr.{reaction}\n";
             }
 
             // Event is not new and workshop is not new
 
             if (currentWS.title != wsFromDB.title)
             {
-                return $"Der Titel des *Workshops* '{wsFromDB.title}' lautet nun '{currentWS.title}' :thumbsup:.\n";
+                var emotes = new Dictionary<string, string>
+                {
+                    { "scratch", ":smiley_cat: :video_game:" },
+                    { "elektronik", ":bulb: :tools:" },
+                    { "android", ":iphone: :computer:" },
+                    { "hacker", ":man_detective: :woman_detective:" },
+                    { "space", ":rocket: :ringed_planet:" },
+                    { "python", ":snake: :video_game:" },
+                    { "development", ":man_technologist: :woman_technologist:" },
+                    { "javascript", ":desktop: :art:" },
+                    { "webseite", ":desktop: :art:" },
+                    { "css", ":desktop: :art:" },
+                    { "discord", ":space_invader: :robot:" },
+                    { "c#", ":musical_score: :notes:" },
+                    { "unity", ":crossed_swords: :video_game:" },
+                    { "micro:bit", ":zero: :one:" },
+                    { "java", ":ghost: :clown:" },
+                };
+
+                var e = emotes.Keys.FirstOrDefault(k => currentWS.title.ToLower().Contains(k));
+                if (e != null)
+                {
+                    reaction = emotes[e];
+                }
+
+                return $"Der Titel des Workshops **{wsFromDB.title}** lautet nun **{currentWS.title}**.{reaction}\n";
             }
 
             if (currentWS.description != wsFromDB.description)
             {
-                return $"Der Workshop '{currentWS.title}' hat nun eine neue Beschreibung.\n";
+                reaction = ":pencil:";
+                return $"Der Workshop **{currentWS.title}** hat nun eine neue Beschreibung.{reaction}\n";
             }
 
             if (currentWS.begintime != wsFromDB.begintimeAsShortTime)
             {
-                return $"Die Startzeit vom Workshop '{currentWS.title}' wurde geändert. Er beginnt um {currentWS.begintime}.\n";
+                reaction = ":alarm_clock:";
+                return $"Die Startzeit vom Workshop **{currentWS.title}** wurde geändert. Er beginnt um **{currentWS.begintime}**.{reaction}\n";
             }
 
             if (currentWS.prerequisites != wsFromDB.prerequisites)
             {
-                return $"Die Workshop Voraussetzungen von '{currentWS.title}' wurden geändert.\n";
+                reaction = ":ballot_box_with_check:";
+                return $"Die Workshop Voraussetzungen von **{currentWS.title}** wurden geändert.{reaction}\n";
             }
 
             if (currentWS.status == "Scheduled" && existingMeeting == null)
             {
-                return $"Es gibt nun einen Zoom-Link für den Workshop '{currentWS.title}': {currentWS.zoom}\n";
+                return $"Es gibt nun einen Zoom-Link für den Workshop **{currentWS.title}**: {currentWS.zoom}\n";
             }
 
             return string.Empty;
