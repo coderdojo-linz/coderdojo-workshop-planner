@@ -4,7 +4,7 @@
 
 > ## Welcome information
 
-*Note: The project and descriptions are in english, but the CoderDojo is in Austria -> german language. So the messages are all german.*
+*Note: The project and descriptions are in english, but the CoderDojo is in Austria -> german language. So the Discord messages are all in german.*
 
 Hello person, who is slightly interested in programming. This is our `CoderDojo Workshop Planer`.
 What? You don't know what that is? You don't even know what the `CoderDojo` is?
@@ -13,11 +13,11 @@ Well here's a short summary about the CoderDojo and this project.
 
 > ### What's the CoderDojo?
 
-The CoderDojo is a programming club for kids and teens between 6 - 17 years in Linz/ Leonding.
-We meet every two weeks for our `regular CoderDojo` and every other week for a `Playground.`
-You can work on a project yourself or with our mentors or friends.
+The CoderDojo is a programming club for kids and teens between 6 - 17 years in Linz/Leonding.
+We meet every two weeks for our `Regular CoderDojo` and every other week for a `Playground.`
+You can work on a project yourself, with our mentors or with friends.
 You don't have the slightest idea about programming? 
-Well don't worry, our mentors will help you and beginners are going to start with Scratch (if you want).
+Well don't worry, our mentors will help you and beginners are usually going to start with Scratch (if you want).
 
 > ### What's the Online CoderDojo?
 
@@ -28,13 +28,15 @@ Since quarantine, we weren't able to do our usual CoderDojo meetings, so we chan
 Before this glorious project, all the meetings had to be organized manually. 
 It was a lot of work, because to create workshops, the admin/ mentors had to follow these steps:
 
-+ Workshop info were written in a markdown in "date folder" (more info below)
++ Workshop info were written in markdowns in "date folders" (more info below)
 + These info were manually transfered to a MongoDB database
-+ Zoom meetings had to be created
++ Zoom meetings had to be created/ updated
 + The info had to be displayed at the CoderDojo website
++ Newsletters had to be sent out -> the data had to be transfered manually
++ Mentor got emails with their workshop info and Zoom meeting URL/user/hostkey -> the data had to be transfered manually
   
 If one mentor wanted to change something about their workshop, all these steps had to be repeated.
-It costed a lot of hard work and nerves.
+It costed a lot of hard work/time and nerves.
 
 > ### What does the CoderDojo Workshop Planer do?
 
@@ -48,7 +50,7 @@ So, our program automates these steps above with some nice features.
 
 > ### Get the data
 
-*Note: We seperate the program with the input file, so in this repository is our program, which is deployed to Azure via a `GitHub Action` on a `push` request, heres the [link](https://github.com/coderdojo-linz/coderdojo-online) for the other repository*
+*Note: We seperate the program with the input file, so in this repository is our program, which is deployed to Azure via a `GitHub Action` on a `push` request and heres the [link](https://github.com/coderdojo-linz/coderdojo-online) for the other repository, where the `yml` files are in*
 
 + Basically you create a date folder `YYYY-MM-DD`
 + In the folder is a `yml` file with all the data we need for processing the workshop
@@ -57,7 +59,7 @@ So, our program automates these steps above with some nice features.
 + This data is sent to a `ServiceBus Topic`
 + The data is written into a `MongoDB database` via a subsciption method of the topic
 
-Now we have the data in the database. Now what? There are a some uses for them.
+Now we have the data in the database.
 
 > ### Displaying the data on the website
 
@@ -162,7 +164,7 @@ workshops:
 | Parameter     | Description                                                                                |
 | ------------  | -----------                                                                                |
 |begintime      | Syntax: `00:00` e.g 13:45                                                                  |
-|endtime        | Syntax: `00:00` e.g 15:45                                                                   |
+|endtime        | Syntax: `00:00` e.g 15:45                                                                  |
 |status         | If the workshop is not fixed, set `Draft`, if you only want send it to the database, but don't want the Zoom meetings yet, set `Published`, if everythings correct and you want to create Zoom meetings, set `Scheduled`                                                                                    |
 |title          | e.g Scratch                                                                                |
 |targetAudience | e.g kids above 6 years                                                                     |
@@ -205,6 +207,7 @@ workshops:
 
 + [CoderDojo](https://coderdojo-linz.github.io/)
 + [CoderDojo-Meetings](https://linz.coderdojo.net/termine/)
++ [Scratch](https://scratch.mit.edu/)
 + [MailChimp](https://mailchimp.com/)
 + [SendGrid](https://sendgrid.com/marketing/sendgrid-services-cro/?extProvId=5&extPu=49397-gaw&extLi=164417502&sem_adg=8807285742&extCr=8807285742-321630592511&extSi=&extTg=&keyword=%2Bsendgrid&extAP=&extMT=b&utm_medium=cpc&utm_source=google&gclid=CjwKCAjw34n5BRA9EiwA2u9k3zDFCGr34XlStDoPazJflgeouA9gi3apBJt6A5AeXLUvNqiSqGY6ahoCGgIQAvD_BwE)
 + [Connection-Strings](https://docs.mlab.com/connecting/#connect-string)
