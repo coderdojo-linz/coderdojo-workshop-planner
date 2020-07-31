@@ -125,7 +125,7 @@ So, we implemented a Discord bot, which sends a specific message each time, the 
 
 How does it work?
 
-During going through all workshops in our `WriteEventToDB` function, we call methods from the `DiscordBot` class and build a message with the data, we get from the workshop. The function `BuildBotMessage` tests if any data was changed and creates a message, which we send to Discord. To send it to the correct channel we created a [Webhook]().
+During going through all workshops in our `WriteEventToDB` function, we call methods from the `DiscordBot` class and build a message with the data, we get from the workshop. The function `BuildBotMessage` tests if any data was changed and creates a message, which we send to Discord. To send it to the correct channel we created a [Webhook](https://github.com/coderdojo-linz/coderdojo-workshop-planner#useful-links).
 If the title was changed, we appended certain emotes to the message, so that it looks nicer. Same for the time.
 
 Sample:
