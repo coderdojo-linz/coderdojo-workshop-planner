@@ -82,7 +82,7 @@ namespace CDWPlanner
                     { "webseite", ":desktop: :art:" },
                     { "css", ":desktop: :art:" },
                     { "discord", ":space_invader: :robot:" },
-                    { "c#", ":musical_score: :notes:" },
+                    { "c#", ":musical_score: :eyeglasses:" },
                     { "unity", ":crossed_swords: :video_game:" },
                     { "micro:bit", ":zero: :one:" },
                     { "java", ":ghost: :clown:" },
