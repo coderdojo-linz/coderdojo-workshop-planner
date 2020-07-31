@@ -44,7 +44,7 @@ So, our program automates these steps above with some nice features.
 
 *Explanation down below*
 
-![Diagram](../coderdojo-workshop-planner/doc/cdwplanner_diagram.png)
+![Diagram](https://github.com/coderdojo-linz/coderdojo-workshop-planner/blob/master/doc/cdwplanner_diagram.png)
 
 > ### Get the data
 
@@ -122,9 +122,9 @@ The CoderDojo also has a Discord server where all info for workshops are being p
 So, we implemented a Discord bot, which sends a specific message each time, the workshop is being updated.
 
 Sample:
-![NewWorkshop](../coderdojo-workshop-planner/doc/botCreate.png)
-![NewTitle](../coderdojo-workshop-planner/doc/botUpdateTitle.png)
-![NewBegintime](../coderdojo-workshop-planner/doc/botUpdateTime.png)
+![NewWorkshop](https://github.com/coderdojo-linz/coderdojo-workshop-planner/blob/master/doc/botCreate.png)
+![NewTitle](https://github.com/coderdojo-linz/coderdojo-workshop-planner/blob/master/doc/botUpdateTitle.png)
+![NewBegintime](https://github.com/coderdojo-linz/coderdojo-workshop-planner/blob/master/doc/botUpdateTime.png)
 
 > ## How to construct a correct workshop plan
 
