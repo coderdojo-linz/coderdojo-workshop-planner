@@ -109,6 +109,12 @@ namespace CDWPlanner
                 return $"Die Startzeit vom Workshop **{currentWS.title}** wurde geändert. Er beginnt um **{currentWS.begintime}**.{reaction}\n";
             }
 
+            if (currentWS.endtime != wsFromDB.endtimeAsShortTime)
+            {
+                reaction = ":alarm_clock:";
+                return $"Die Endzeit vom Workshop **{currentWS.title}** wurde geändert. Er endet um **{currentWS.endtime}**.{reaction}\n";
+            }
+
             if (currentWS.prerequisites != wsFromDB.prerequisites)
             {
                 reaction = ":ballot_box_with_check:";
