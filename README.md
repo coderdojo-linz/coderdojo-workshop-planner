@@ -4,7 +4,7 @@
 
 > ## Welcome information
 
-*Note: This project and descriptions are in english, but the CoderDojo is in Austria -> german language. So the messages are all german.*
+*Note: The project and descriptions are in english, but the CoderDojo is in Austria -> german language. So the messages are all german.*
 
 Hello person, who is slightly interested in programming. This is our `CoderDojo Workshop Planer`.
 What? You don't know what that is? You don't even know what the `CoderDojo` is?
@@ -33,7 +33,7 @@ It was a lot of work, because to create workshops, the admin/ mentors had to fol
 + Zoom meetings had to be created
 + The info had to be displayed at the CoderDojo website
   
-If one mentor wanted to change something about his workshop, all these steps had to be repeated.
+If one mentor wanted to change something about their workshop, all these steps had to be repeated.
 It costed a lot of hard work and nerves.
 
 > ### What does the CoderDojo Workshop Planer do?
@@ -46,7 +46,7 @@ So, our program automates these steps above with some nice features.
 
 ![Diagram](../coderdojo-workshop-planner/doc/cdwplanner_diagram.png)
 
-> ### Get data
+> ### Get the data
 
 *Note: We seperate the program with the input file, so in this repository is our program, which is deployed to Azure via a `GitHub Action` on a `push` request, heres the [link](https://github.com/coderdojo-linz/coderdojo-online) for the other repository*
 
