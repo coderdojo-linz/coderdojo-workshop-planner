@@ -39,7 +39,7 @@ namespace CDWPlanner
             var dbString = Environment.GetEnvironmentVariable("MONGODB", EnvironmentVariableTarget.Process);
             var dbConnection = Environment.GetEnvironmentVariable("MONGOCONNECTION", EnvironmentVariableTarget.Process);
 
-            var urlMongo = $"mongodb://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=false";
+            var urlMongo = $"mongodb+srv://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=true&w=majority";
             var dbClient = new MongoClient(urlMongo);
 
             var dbServer = dbClient.GetDatabase($"{dbString}");
