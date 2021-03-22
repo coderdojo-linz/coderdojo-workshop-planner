@@ -151,7 +151,9 @@ namespace CDWPlanner
                     }
                 }
 
-                await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent);
+                var messageMetaData = await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent);
+                workshop.discordMessage = messageMetaData;
+                
                 workshopData.Add(workshop.ToBsonDocument(parsedDateEvent));
             }
 
