@@ -7,14 +7,16 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using CDWPlanner.Constants;
 using CDWPlanner.Model;
 using Discord;
+using Discord.Rest;
 
 namespace CDWPlanner
 {
-    public interface IDiscordBot
+    public interface IDiscordBotService
     {
         //Task SendDiscordBotMessage(string msg);
 
@@ -22,17 +24,49 @@ namespace CDWPlanner
         Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Event cdEvent, DateTime date);
     };
 
-    public class DiscordBot : IDiscordBot
+    public class DiscordBotService : IDiscordBotService
     {
+        private SemaphoreSlim _initializationSemaphore = new SemaphoreSlim(1, 1);
+
         private readonly IDiscordClient _discordClient;
 
-        public DiscordBot(IDiscordClient discordClient)
+        public DiscordBotService(IDiscordClient discordClient)
         {
             _discordClient = discordClient;
         }
 
+        /// <summary>
+        /// TODO: Maybe trigger through a one-time triggered func?
+        /// </summary>
+        /// <returns></returns>
+        private async Task EnsureClientLoggedIn()
+        {
+            if (!(_discordClient is BaseDiscordClient baseDiscord))
+            {
+                return;
+            }
+
+            if (baseDiscord.LoginState != LoginState.LoggedIn)
+            {
+                await _initializationSemaphore.WaitAsync();
+                try
+                {
+                    if (baseDiscord.LoginState == LoginState.LoggedIn)
+                    {
+                        return;
+                    }
+                    await baseDiscord.LoginAsync(TokenType.Bot, "", true);
+                }
+                finally
+                {
+                    _initializationSemaphore.Release();
+                }
+            }
+        }
+
         public async Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWorkshop, Event cdEvent, DateTime date)
         {
+            await EnsureClientLoggedIn();
             var thumbsUpEmote = new Emoji("\U0001F44D");
 
             var dbWorkshop = cdEvent?.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWorkshop.shortCode);
@@ -124,7 +158,6 @@ namespace CDWPlanner
             return message;
         }
 
-
         private Embed BuildEmbed(Workshop workshop, DateTime date, bool isNew)
         {
             var eb = new EmbedBuilder()
@@ -134,7 +167,7 @@ namespace CDWPlanner
                 .AddField("Zeit", $"{workshop.begintimeAsShortTime}", true)
                 .AddField(workshop.mentors.Count > 1 ? "Mentors" : "Mentor", GetMentorsText(workshop.mentors), true)
                 .AddField("Zoom", workshop.zoom) // TODO: Link shortener ("https://meet.coderdojo.net/COOLMEETINGID")
-                .WithThumbnailUrl("https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj") // TODO: Title to default image && overwrite by yaml
+                .WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
                 .WithColor(Color.Red)
                 .WithUrl("https://linz.coderdojo.net/termine/") //TODO: Implement direct navigation support on site
                 .WithFooter(x => x.WithText("Reagiere mit \U0001F44D, um benachrichtigt zu werden")); // Thumbsup
@@ -183,6 +216,27 @@ namespace CDWPlanner
 
                 var mentorsFormatted = mentors.Select(x => $"• {x}");
                 return string.Join('\n', mentorsFormatted);
+            }
+
+            // Todo: extend a bit
+            string GetDefaultThumbnail(string title)
+            {
+                var pairs = new Dictionary<string, string>
+                {
+                    { "scratch", "https://de.scratch-wiki.info/w/images/e/ed/Scratch_cat_large.png" },
+                    { "c#", "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/C_Sharp_wordmark.svg/1280px-C_Sharp_wordmark.svg.png" },
+                    { "csharp", "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/C_Sharp_wordmark.svg/1280px-C_Sharp_wordmark.svg.png" },
+                };
+
+                foreach (var pair in pairs)
+                {
+                    if (title.Contains(pair.Key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return pair.Value;
+                    }
+                }
+
+                return "https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj"; // coderdojo
             }
         }
     }

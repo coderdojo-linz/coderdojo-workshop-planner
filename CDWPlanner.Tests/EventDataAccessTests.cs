@@ -32,7 +32,7 @@ namespace CDWPlanner.Tests
                 It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
 
-            var discordBotMock = new Mock<IDiscordBot>();
+            var discordBotMock = new Mock<IDiscordBotService>();
 
             //discordBotMock.Setup(d => d.BuildBotMessage(
             //    It.IsAny<Workshop>(), It.IsAny<Event>(), It.IsAny<Meeting>(), It.IsAny<DateTime>()))

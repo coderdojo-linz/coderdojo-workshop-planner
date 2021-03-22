@@ -25,11 +25,11 @@ namespace CDWPlanner
         private readonly IGitHubFileReader fileReader;
         private readonly IDataAccess dataAccess;
         private readonly IPlanZoomMeeting planZoomMeeting;
-        private readonly IDiscordBot discordBot;
+        private readonly IDiscordBotService discordBot;
         private readonly NewsletterHtmlBuilder htmlBuilder;
         private readonly EmailContentBuilder emailBuilder;
 
-        public PlanEvent(IDataAccess dataAccess, IDiscordBot discordBot, IGitHubFileReader fileReader,
+        public PlanEvent(IDataAccess dataAccess, IDiscordBotService discordBot, IGitHubFileReader fileReader,
             IPlanZoomMeeting planZoomMeeting, EmailContentBuilder emailBuilder, NewsletterHtmlBuilder htmlBuilder)
         {
             this.fileReader = fileReader;
