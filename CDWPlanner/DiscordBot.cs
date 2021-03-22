@@ -1,132 +1,189 @@
 ﻿using CDWPlanner.DTO;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CDWPlanner.Constants;
+using CDWPlanner.Model;
+using Discord;
 
 namespace CDWPlanner
 {
     public interface IDiscordBot
     {
-        Task SendDiscordBotMessage(string msg);
-        string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date);
+        //Task SendDiscordBotMessage(string msg);
+
+        //string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date);
+        Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Event cdEvent, DateTime date);
     };
 
     public class DiscordBot : IDiscordBot
     {
-        private readonly HttpClient client;
+        private readonly IDiscordClient _discordClient;
 
-        public DiscordBot(IHttpClientFactory clientFactory)
+        public DiscordBot(IDiscordClient discordClient)
         {
-            client = clientFactory.CreateClient("discord");
+            _discordClient = discordClient;
         }
 
-        public async Task SendDiscordBotMessage(string msg)
+        public async Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWorkshop, Event cdEvent, DateTime date)
         {
-            var info = "Hey :wave:, hier ist ein Update zu einem Online CoderDojo Workshop: :point_down: \n";
-            if (msg == "")
+            var thumbsUpEmote = new Emoji("\U0001F44D");
+
+            var dbWorkshop = cdEvent?.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWorkshop.shortCode);
+            var embedMessageToSend = BuildEmbed(currentWorkshop, date, dbWorkshop == null);
+
+            var discordMessage = dbWorkshop?.discordMessage?.Clone() ?? new DiscordMessage();
+            discordMessage.GuildId ??= 704990064039559238; // coderdojo austria
+            discordMessage.ChannelId ??= 719867879054377092; // bot-spam
+
+            var message = await CreateOrUpdateMessageAsync(embedMessageToSend, discordMessage);
+
+            var reactionRequired = !message.Reactions.TryGetValue(thumbsUpEmote, out var reaction) || !reaction.IsMe;
+            if (reactionRequired)
             {
-                Debug.WriteLine("Nothing changed");
+                await message.AddReactionAsync(thumbsUpEmote);
+            }
+
+            await ResetReactionsIfNecessary(currentWorkshop, thumbsUpEmote, dbWorkshop, message);
+
+            return discordMessage;
+        }
+
+        private async Task ResetReactionsIfNecessary(Workshop currentWorkshop, Emoji thumbsUpEmote, Workshop dbWorkshop, IUserMessage message)
+        {
+            if (dbWorkshop == null)
+            {
                 return;
             }
-            var meetingRequest = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                Content = new StringContent(
-                JsonSerializer.Serialize(new
-                {
-                    content = $"{info}{msg}"
-                }), Encoding.UTF8, "application/json")
-            };
-            using var getResponse = await client.SendAsync(meetingRequest);
-            getResponse.EnsureSuccessStatusCode();
 
-            Debug.WriteLine("Something changed. Check out Discord for more info");
+            var changeEvent = new WorkshopChangedEvent(dbWorkshop, currentWorkshop);
+            if (!changeEvent.TimeHasChanged)
+            {
+                return;
+            }
+
+            var hadOneUser = false;
+
+            var reactedUsers = message.GetReactionUsersAsync(thumbsUpEmote, 1000)
+                .SelectMany(x => x.ToAsyncEnumerable())
+                .Where(x => !x.IsBot && x.Id != _discordClient.CurrentUser.Id);
+
+            await foreach (var reactedUser in reactedUsers)
+            {
+                hadOneUser = true;
+                // Notify user that time has changed
+                var affectedTimes = new string[]
+                {
+                    !changeEvent.BeginTimeChanged ? string.Empty : "Startzeit",
+                    !changeEvent.EndTimeChanged ? string.Empty : "Endzeit"
+                }.Where(x => !string.IsNullOrEmpty(x));
+
+                var affectedTimeString = string.Join(" und ", affectedTimes);
+
+                await reactedUser.SendMessageAsync
+                (
+                    $"Die {affectedTimeString} vom Workshop **{currentWorkshop.title}** wurde geändert. \n" +
+                    $"Er beginnt um **{currentWorkshop.begintime}** und endet um {currentWorkshop.endtime}.:alarm_clock:\n" +
+                    $"Deshalb wurde deine Benachrichtigung deaktiviert. Bitte reagiere erneut mit \U0001F44D auf die Nachricht am Server, damit du rechtzeitig erinnert wirst!"
+                );
+            }
+
+            if (hadOneUser)
+            {
+                await message.RemoveAllReactionsAsync();
+                await message.AddReactionAsync(thumbsUpEmote);
+            }
         }
 
-        public string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date)
+        private async Task<IUserMessage> CreateOrUpdateMessageAsync(Embed embedMessageToSend, DiscordMessage discordMessage)
         {
-            var reaction = ":tada:";
-            // Event does not exist yet -> workshop must be new
-            if (cdEvent == null)
+            var server = await _discordClient.GetGuildAsync(discordMessage.GuildId ?? throw new ArgumentException("This is impossible"));
+            var channel = await server.GetTextChannelAsync(discordMessage.ChannelId ?? throw new ArgumentException("This is impossible"));
+
+            IUserMessage message = null;
+            if (discordMessage?.MessageId == null)
             {
-                return $"Der Workshop **{currentWS.title}** wurde hinzugefügt und startet am **{date:dd.MM.yyyy}** um **{currentWS.begintimeAsShortTime}** Uhr.{reaction}\n";
+                // Create new
+                return await channel.SendMessageAsync(embed: embedMessageToSend);
             }
 
-            var wsFromDB = cdEvent.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWS.shortCode);
-
-            // Workshop does not exist yet
-            if (wsFromDB == null)
+            message = await channel.GetMessageAsync(discordMessage.MessageId.Value) as IUserMessage;
+            if (message == null)
             {
-                return $"Der Workshop **{currentWS.title}** wurde hinzugefügt und startet am **{date:dd.MM.yyyy}** um **{currentWS.begintimeAsShortTime}** Uhr.{reaction}\n";
+                //Stored message was not found
+                return await channel.SendMessageAsync(embed: embedMessageToSend);
             }
 
-            // Event is not new and workshop is not new
+            await message.ModifyAsync(x => x.Embed = new Optional<Embed>(embedMessageToSend));
+            return message;
+        }
 
-            if (currentWS.title != wsFromDB.title)
+
+        private Embed BuildEmbed(Workshop workshop, DateTime date, bool isNew)
+        {
+            var eb = new EmbedBuilder()
+                .WithTitle(workshop.title)
+                .WithDescription(workshop.description)
+                .AddField("Datum", $"{date:dd.MM.yyyy}", true)
+                .AddField("Zeit", $"{workshop.begintimeAsShortTime}", true)
+                .AddField(workshop.mentors.Count > 1 ? "Mentors" : "Mentor", GetMentorsText(workshop.mentors), true)
+                .AddField("Zoom", workshop.zoom) // TODO: Link shortener ("https://meet.coderdojo.net/COOLMEETINGID")
+                .WithThumbnailUrl("https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj") // TODO: Title to default image && overwrite by yaml
+                .WithColor(Color.Red)
+                .WithUrl("https://linz.coderdojo.net/termine/") //TODO: Implement direct navigation support on site
+                .WithFooter(x => x.WithText("Reagiere mit \U0001F44D, um benachrichtigt zu werden")); // Thumbsup
+
+            // Thumbnail default idee:
+            //var emotes = new Dictionary<string, string>
+            //{
+            //    { "scratch", ":smiley_cat: :video_game:" },
+            //    { "elektronik", ":bulb: :tools:" },
+            //    { "android", ":iphone: :computer:" },
+            //    { "hacker", ":man_detective: :woman_detective:" },
+            //    { "space", ":rocket: :ringed_planet:" },
+            //    { "python", ":snake: :video_game:" },
+            //    { "development", ":man_technologist: :woman_technologist:" },
+            //    { "javascript", ":desktop: :art:" },
+            //    { "webseite", ":desktop: :art:" },
+            //    { "css", ":desktop: :art:" },
+            //    { "discord", ":space_invader: :robot:" },
+            //    { "c#", ":musical_score: :eyeglasses:" },
+            //    { "unity", ":crossed_swords: :video_game:" },
+            //    { "micro:bit", ":zero: :one:" },
+            //    { "java", ":ghost: :clown:" },
+            //};
+
+            if (isNew)
             {
-                var emotes = new Dictionary<string, string>
-                {
-                    { "scratch", ":smiley_cat: :video_game:" },
-                    { "elektronik", ":bulb: :tools:" },
-                    { "android", ":iphone: :computer:" },
-                    { "hacker", ":man_detective: :woman_detective:" },
-                    { "space", ":rocket: :ringed_planet:" },
-                    { "python", ":snake: :video_game:" },
-                    { "development", ":man_technologist: :woman_technologist:" },
-                    { "javascript", ":desktop: :art:" },
-                    { "webseite", ":desktop: :art:" },
-                    { "css", ":desktop: :art:" },
-                    { "discord", ":space_invader: :robot:" },
-                    { "c#", ":musical_score: :eyeglasses:" },
-                    { "unity", ":crossed_swords: :video_game:" },
-                    { "micro:bit", ":zero: :one:" },
-                    { "java", ":ghost: :clown:" },
-                };
+                eb = eb
+                    .WithAuthor(x => x.WithName("Neu"))
+                    .WithColor(Color.Green);
+            }
+            else
+            {
+                eb = eb
+                    .WithAuthor(x => x.WithName("Geändert"))
+                    .WithColor(Color.Blue);
+            }
 
-                var e = emotes.Keys.FirstOrDefault(k => currentWS.title.ToLower().Contains(k));
-                if (e != null)
+            return eb.Build();
+
+            string GetMentorsText(List<string> mentors)
+            {
+                if (mentors.Count <= 1)
                 {
-                    reaction = emotes[e];
+                    return mentors.FirstOrDefault() ?? string.Empty;
                 }
 
-                return $"Der Titel des Workshops **{wsFromDB.title}** lautet nun **{currentWS.title}**.{reaction}\n";
+                var mentorsFormatted = mentors.Select(x => $"• {x}");
+                return string.Join('\n', mentorsFormatted);
             }
-
-            if (currentWS.description != wsFromDB.description)
-            {
-                reaction = ":pencil:";
-                return $"Der Workshop **{currentWS.title}** hat nun eine neue Beschreibung.{reaction}\n";
-            }
-
-            if (currentWS.begintime != wsFromDB.begintimeAsShortTime)
-            {
-                reaction = ":alarm_clock:";
-                return $"Die Startzeit vom Workshop **{currentWS.title}** wurde geändert. Er beginnt um **{currentWS.begintime}**.{reaction}\n";
-            }
-
-            if (currentWS.endtime != wsFromDB.endtimeAsShortTime)
-            {
-                reaction = ":alarm_clock:";
-                return $"Die Endzeit vom Workshop **{currentWS.title}** wurde geändert. Er endet um **{currentWS.endtime}**.{reaction}\n";
-            }
-
-            if (currentWS.prerequisites != wsFromDB.prerequisites)
-            {
-                reaction = ":ballot_box_with_check:";
-                return $"Die Workshop Voraussetzungen von **{currentWS.title}** wurden geändert.{reaction}\n";
-            }
-
-            if (currentWS.status == "Scheduled" && existingMeeting == null)
-            {
-                return $"Es gibt nun einen Zoom-Link für den Workshop **{currentWS.title}**: {currentWS.zoom}\n";
-            }
-
-            return string.Empty;
         }
     }
 }

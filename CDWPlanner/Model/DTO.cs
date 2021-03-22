@@ -2,6 +2,7 @@
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace CDWPlanner.DTO
 {
@@ -68,6 +69,9 @@ namespace CDWPlanner.DTO
         public string zoomUser { get; set; }
         public string zoom { get; set; }
 
+        [BsonElement("discordMessage")]
+        public DiscordMessage discordMessage { get; set; }
+
         public BsonDocument ToBsonDocument(DateTime baseDate) =>
             new BsonDocument {
                 { "begintime" ,baseDate.Add(TimeSpan.Parse(begintime)).ToString("o") },
@@ -79,9 +83,34 @@ namespace CDWPlanner.DTO
                 { "mentors", new BsonArray(mentors)},
                 { "zoomUser" , zoomUser },
                 { "zoom" , zoom },
-                { "shortCode" , shortCode }
-
+                { "shortCode" , shortCode },
+                { "discordMessage" , (discordMessage ?? new DiscordMessage()).ToBsonDocument() },
             };
+    }
+
+    public class DiscordMessage
+    {
+        /// <summary>
+        /// The id of the server, the message was sent to
+        /// </summary>
+        public ulong? GuildId { get; set; }
+
+        /// <summary>
+        /// The id of the channel, the message was sent to
+        /// </summary>
+        public ulong? ChannelId { get; set; }
+
+        /// <summary>
+        /// The id of the Message
+        /// </summary>
+        public ulong? MessageId { get; set; }
+
+        public DiscordMessage Clone() => new DiscordMessage()
+        {
+            ChannelId = ChannelId,
+            GuildId = GuildId,
+            MessageId = MessageId
+        };
     }
 
     public class WorkshopsRoot

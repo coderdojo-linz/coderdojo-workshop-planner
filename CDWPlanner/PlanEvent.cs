@@ -16,6 +16,7 @@ using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlanner.DTO;
 using System.Text;
+using CDWPlanner.Constants;
 
 namespace CDWPlanner
 {
@@ -58,7 +59,7 @@ namespace CDWPlanner
                         .Where(item => Regex.IsMatch(item.splittedFolder[^2], @"^\d{4}-\d{2}-\d{2}$"))
                         .Select(item => new FolderFileInfo { FullFolder = item.fullFolder, DateFolder = item.splittedFolder[^2], File = item.splittedFolder[^1] });
 
-                // Add them to a list, one for modiefied, one for new folders/files
+                // Add them to a list, one for modified, one for new folders/files
                 var commitListAdded = GetFolderAndFile(commit.added)
                     .Select(c => new WorkshopOperation { Operation = "added", FolderInfo = c });
                 var commitListChanged = GetFolderAndFile(commit.modified)
@@ -119,40 +120,39 @@ namespace CDWPlanner
             var userNum = 0;
             var hostKey = string.Empty;
 
-            foreach (var w in workshopOperation.Workshops.workshops.Where(ws => ws.status != "Draft").OrderBy(ws => ws.begintime))
+            foreach (var workshop in workshopOperation.Workshops.workshops.Where(ws => ws.status != WorkshopStatus.Draft).OrderBy(ws => ws.begintime))
             {
 
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
-                w.zoom = string.Empty;
-                w.zoomUser = string.Empty;
+                workshop.zoom = string.Empty;
+                workshop.zoomUser = string.Empty;
 
                 // Find meeting in meeting buffer
-                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, w.shortCode, parsedDateEvent);
+                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, workshop.shortCode, parsedDateEvent);
 
                 // Create or update meeting
-                if (w.status == "Scheduled")
+                if (workshop.status == WorkshopStatus.Scheduled)
                 {
                     if (existingMeeting != null)
                     {
                         log.LogInformation("Updating Meeting");
-                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
-                        w.zoom = existingMeeting.join_url;
+                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, workshop.begintime, dateFolder, workshop.title, workshop.description, workshop.shortCode, userId);
+                        workshop.zoom = existingMeeting.join_url;
                         var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
-                        w.zoomUser = user.email;
+                        workshop.zoomUser = user.email;
                     }
                     else
                     {
                         log.LogInformation("Creating Meeting");
-                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(w.begintime, dateFolder, w.title, w.description, w.shortCode, userId);
-                        w.zoom = getLinkData.join_url;
-                        w.zoomUser = userId;
+                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(workshop.begintime, dateFolder, workshop.title, workshop.description, workshop.shortCode, userId);
+                        workshop.zoom = getLinkData.join_url;
+                        workshop.zoomUser = userId;
                     }
                 }
 
-                var msg = discordBot.BuildBotMessage(w, dbEventsFound, existingMeeting, parsedDateEvent);
-                await discordBot.SendDiscordBotMessage(msg);
-                workshopData.Add(w.ToBsonDocument(parsedDateEvent));
+                await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent);
+                workshopData.Add(workshop.ToBsonDocument(parsedDateEvent));
             }
 
             // Check wheather a new file exists, create/or modifie it

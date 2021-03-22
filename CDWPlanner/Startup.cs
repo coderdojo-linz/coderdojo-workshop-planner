@@ -32,14 +32,14 @@ namespace CDWPlanner
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
             });
 
-            var discordChannelUrl = Environment.GetEnvironmentVariable("DISCORDCHANNEL", EnvironmentVariableTarget.Process);
-            builder.Services.AddHttpClient("discord", c =>
-            {
-                c.BaseAddress = new Uri($"https://discordapp.com/api/webhooks/{discordChannelUrl}");
-                c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
-                c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
-                c.DefaultRequestHeaders.Add("Timeout", "1000000000");
-            });
+            //var discordChannelUrl = Environment.GetEnvironmentVariable("DISCORDCHANNEL", EnvironmentVariableTarget.Process);
+            //builder.Services.AddHttpClient("discord", c =>
+            //{
+            //    c.BaseAddress = new Uri($"https://discordapp.com/api/webhooks/{discordChannelUrl}");
+            //    c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
+            //    c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
+            //    c.DefaultRequestHeaders.Add("Timeout", "1000000000");
+            //});
 
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
             builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
