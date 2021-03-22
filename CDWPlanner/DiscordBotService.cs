@@ -29,10 +29,12 @@ namespace CDWPlanner
         private SemaphoreSlim _initializationSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly IDiscordClient _discordClient;
+        private readonly DiscordSettings _settings;
 
-        public DiscordBotService(IDiscordClient discordClient)
+        public DiscordBotService(IDiscordClient discordClient, DiscordSettings settings)
         {
             _discordClient = discordClient;
+            this._settings = settings;
         }
 
         /// <summary>
@@ -73,8 +75,8 @@ namespace CDWPlanner
             var embedMessageToSend = BuildEmbed(currentWorkshop, date, dbWorkshop == null);
 
             var discordMessage = dbWorkshop?.discordMessage?.Clone() ?? new DiscordMessage();
-            discordMessage.GuildId ??= 704990064039559238; // coderdojo austria
-            discordMessage.ChannelId ??= 719867879054377092; // bot-spam
+            discordMessage.GuildId ??= _settings.GuildId; // coderdojo austria
+            discordMessage.ChannelId ??= _settings.ChannelId; // bot-spam
 
             var message = await CreateOrUpdateMessageAsync(embedMessageToSend, discordMessage);
 
