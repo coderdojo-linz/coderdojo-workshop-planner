@@ -121,13 +121,20 @@ namespace CDWPlanner
                 }.Where(x => !string.IsNullOrEmpty(x));
 
                 var affectedTimeString = string.Join(" und ", affectedTimes);
-
-                await reactedUser.SendMessageAsync
-                (
-                    $"Die {affectedTimeString} vom Workshop **{currentWorkshop.title}** wurde geändert. \n" +
-                    $"Er beginnt um **{currentWorkshop.begintime}** und endet um {currentWorkshop.endtime}.:alarm_clock:\n" +
-                    $"Deshalb wurde deine Benachrichtigung deaktiviert. Bitte reagiere erneut mit \U0001F44D auf die Nachricht am Server, damit du rechtzeitig erinnert wirst!"
-                );
+                try
+                {
+                    await reactedUser.SendMessageAsync
+                    (
+                        $"Die {affectedTimeString} vom Workshop **{currentWorkshop.title}** wurde geändert. \n" +
+                        $"Er beginnt um **{currentWorkshop.begintime}** und endet um {currentWorkshop.endtime}.:alarm_clock:\n" +
+                        $"Deshalb wurde deine Benachrichtigung deaktiviert. Bitte reagiere erneut mit \U0001F44D auf die Nachricht am Server, damit du rechtzeitig erinnert wirst!"
+                    );
+                }
+                catch (Exception)
+                {
+                    //Ignore
+                }
+              
             }
 
             if (hadOneUser)
