@@ -359,3 +359,5 @@ MigrationBackup/
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio
 /CDWPlanner/Properties/launchSettings.json
+/.local/dump
+/CDWPlanner/Properties/ServiceDependencies/CDWPlannerJonasTest - Zip Deploy

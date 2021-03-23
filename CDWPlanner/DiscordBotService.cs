@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Castle.DynamicProxy.Generators.Emitters.SimpleAST;
 using CDWPlanner.Constants;
 using CDWPlanner.Model;
 using Discord;
@@ -21,7 +22,8 @@ namespace CDWPlanner
         //Task SendDiscordBotMessage(string msg);
 
         //string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date);
-        Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Event cdEvent, DateTime date);
+        Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Event cdEvent, DateTime date,
+            Meeting existingMeeting);
     };
 
     public class DiscordBotService : IDiscordBotService
@@ -57,7 +59,7 @@ namespace CDWPlanner
                     {
                         return;
                     }
-                    await baseDiscord.LoginAsync(TokenType.Bot, "", true);
+                    await baseDiscord.LoginAsync(TokenType.Bot, _settings.Token, true);
                 }
                 finally
                 {
@@ -66,28 +68,49 @@ namespace CDWPlanner
             }
         }
 
-        public async Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWorkshop, Event cdEvent, DateTime date)
+        public async Task<DiscordMessage> SendDiscordBotMessage
+        (
+            Workshop currentWorkshop,
+            Event cdEvent,
+            DateTime date,
+            Meeting existingMeeting
+        )
         {
+            Embed embedMessageToSend;
             await EnsureClientLoggedIn();
             var thumbsUpEmote = new Emoji("\U0001F44D");
 
             var dbWorkshop = cdEvent?.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWorkshop.shortCode);
-            var embedMessageToSend = BuildEmbed(currentWorkshop, date, dbWorkshop == null);
+            var discordMessage = GetDiscordMessage(dbWorkshop);
+            var messageContext = await DiscordMessageContext.CreateAsync(_discordClient, discordMessage);
 
+            // We dont have any record in the db yet, so we cannot know wether there is a msg or not
+            if (dbWorkshop == null || messageContext.UserMessage == null)
+            {
+                embedMessageToSend = BuildEmbed(currentWorkshop, date, true);
+                await messageContext.SendAsync(embedMessageToSend);
+                await messageContext.AddReactionAsync(thumbsUpEmote);
+                return messageContext.Message;
+            }
+
+            if (!WorkshopChanged(currentWorkshop, dbWorkshop, existingMeeting))
+            {
+                return messageContext.Message;
+            }
+
+            embedMessageToSend = BuildEmbed(currentWorkshop, date, false);
+            await messageContext.UpdateAsync(x => x.Embed = new Optional<Embed>(embedMessageToSend));
+            await ResetReactionsIfNecessary(currentWorkshop, thumbsUpEmote, dbWorkshop, messageContext.UserMessage);
+
+
+            return discordMessage;
+        }
+
+        private DiscordMessage GetDiscordMessage(Workshop dbWorkshop)
+        {
             var discordMessage = dbWorkshop?.discordMessage?.Clone() ?? new DiscordMessage();
             discordMessage.GuildId ??= _settings.GuildId; // coderdojo austria
             discordMessage.ChannelId ??= _settings.ChannelId; // bot-spam
-
-            var message = await CreateOrUpdateMessageAsync(embedMessageToSend, discordMessage);
-
-            var reactionRequired = !message.Reactions.TryGetValue(thumbsUpEmote, out var reaction) || !reaction.IsMe;
-            if (reactionRequired)
-            {
-                await message.AddReactionAsync(thumbsUpEmote);
-            }
-
-            await ResetReactionsIfNecessary(currentWorkshop, thumbsUpEmote, dbWorkshop, message);
-
             return discordMessage;
         }
 
@@ -134,7 +157,6 @@ namespace CDWPlanner
                 {
                     //Ignore
                 }
-              
             }
 
             if (hadOneUser)
@@ -144,36 +166,18 @@ namespace CDWPlanner
             }
         }
 
-        private async Task<IUserMessage> CreateOrUpdateMessageAsync(Embed embedMessageToSend, DiscordMessage discordMessage)
+        private async Task<DiscordMessageContext> TryGetDiscordUserMessage(DiscordMessage discordMessage)
         {
-            var server = await _discordClient.GetGuildAsync(discordMessage.GuildId ?? throw new ArgumentException("This is impossible"));
-            var channel = await server.GetTextChannelAsync(discordMessage.ChannelId ?? throw new ArgumentException("This is impossible"));
-
-            IUserMessage message = null;
-            if (discordMessage?.MessageId == null)
-            {
-                // Create new
-                return await channel.SendMessageAsync(embed: embedMessageToSend);
-            }
-
-            message = await channel.GetMessageAsync(discordMessage.MessageId.Value) as IUserMessage;
-            if (message == null)
-            {
-                //Stored message was not found
-                return await channel.SendMessageAsync(embed: embedMessageToSend);
-            }
-
-            await message.ModifyAsync(x => x.Embed = new Optional<Embed>(embedMessageToSend));
-            return message;
+            return await DiscordMessageContext.CreateAsync(_discordClient, discordMessage);
         }
-
+        
         private Embed BuildEmbed(Workshop workshop, DateTime date, bool isNew)
         {
             var eb = new EmbedBuilder()
                 .WithTitle(workshop.title)
                 .WithDescription(workshop.description)
                 .AddField("Datum", $"{date:dd.MM.yyyy}", true)
-                .AddField("Zeit", $"{workshop.begintimeAsShortTime}", true)
+                .AddField("Zeit", $"{workshop.begintimeAsShortTime}-{workshop.endtimeAsShortTime}", true)
                 .AddField(workshop.mentors.Count > 1 ? "Mentors" : "Mentor", GetMentorsText(workshop.mentors), true)
                 .AddField("Zoom", workshop.zoom) // TODO: Link shortener ("https://meet.coderdojo.net/COOLMEETINGID")
                 .WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
@@ -211,7 +215,8 @@ namespace CDWPlanner
             {
                 eb = eb
                     .WithAuthor(x => x.WithName("Geändert"))
-                    .WithColor(Color.Blue);
+                    .WithColor(Color.Blue)
+                    .WithCurrentTimestamp();
             }
 
             return eb.Build();
@@ -235,6 +240,10 @@ namespace CDWPlanner
                     { "scratch", "https://de.scratch-wiki.info/w/images/e/ed/Scratch_cat_large.png" },
                     { "c#", "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/C_Sharp_wordmark.svg/1280px-C_Sharp_wordmark.svg.png" },
                     { "csharp", "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/C_Sharp_wordmark.svg/1280px-C_Sharp_wordmark.svg.png" },
+                    { "docker", "https://oneclick-cloud.com/wp-content/uploads/2019/09/Bigstock_-139961875-Docker-Emblem.-A-Blue-Whale-With-Several-Containers.-e1574090673987-768x426.jpg" },
+                    { "typescript", "https://miro.medium.com/max/816/1*mn6bOs7s6Qbao15PMNRyOA.png" },
+                    { "elektronikbasteln", "https://www.ingenieur.de/wp-content/uploads/2020/12/panthermedia_B24073749_1000x667-313x156.jpg" },
+                    { "css", "https://www.pngitem.com/pimgs/m/198-1985012_transparent-css3-logo-png-css-logo-transparent-background.png" },
                 };
 
                 foreach (var pair in pairs)
@@ -246,6 +255,85 @@ namespace CDWPlanner
                 }
 
                 return "https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj"; // coderdojo
+            }
+        }
+
+        public bool WorkshopChanged(Workshop currentWS, Workshop wsFromDB, Meeting existingMeeting)
+        {
+            // Workshop does not exist yet
+            if (wsFromDB == null)
+            {
+                return true;
+            }
+
+            // Event is not new and workshop is not new
+
+            return currentWS.title != wsFromDB.title
+                   || currentWS.description != wsFromDB.description
+                   || currentWS.begintime != wsFromDB.begintimeAsShortTime
+                   || currentWS.endtime != wsFromDB.endtimeAsShortTime
+                   || currentWS.prerequisites != wsFromDB.prerequisites
+                   || currentWS.status == "Scheduled" && existingMeeting == null;
+        }
+
+        public class DiscordMessageContext
+        {
+            private readonly IDiscordClient _client;
+
+            public DiscordMessage Message { get; }
+            public IUserMessage UserMessage { get; private set; }
+            public ITextChannel Channel { get; private set; }
+
+            public IGuild Server { get; private set; }
+
+            private DiscordMessageContext
+            (
+                IDiscordClient client,
+                DiscordMessage message,
+                IGuild server,
+                ITextChannel channel,
+                IUserMessage userMessage
+            )
+            {
+                _client = client;
+                Message = message.Clone();
+                Server = server;
+                Channel = channel;
+                UserMessage = userMessage;
+            }
+
+            public static async Task<DiscordMessageContext> CreateAsync(IDiscordClient client, DiscordMessage message)
+            {
+                message = (message ?? throw new ArgumentNullException("message cannot be null")).Clone();
+
+                var server = await client.GetGuildAsync(message.GuildId ?? throw new ArgumentException("This is impossible"));
+                var channel = await server.GetTextChannelAsync(message.ChannelId ?? throw new ArgumentException("This is impossible"));
+                var msg = message.MessageId == null ? null : await channel.GetMessageAsync(message.MessageId.Value) as IUserMessage;
+                if (msg == null)
+                {
+                    message.MessageId = null;
+                }
+                
+                return new DiscordMessageContext(client, message, server, channel, msg);
+            }
+
+            public async Task SendAsync(Embed embed) => await SendAsync(string.Empty, embed);
+
+            public async Task SendAsync(string text = null, Embed embed = null)
+            {
+                var msg = await Channel.SendMessageAsync(text, embed: embed);
+                UserMessage = msg;
+                Message.MessageId = msg.Id;
+            }
+
+            public async Task UpdateAsync(Action<MessageProperties> action)
+            {
+                await UserMessage.ModifyAsync(action);
+            }
+
+            public async Task AddReactionAsync(Emoji emote)
+            {
+                await UserMessage.AddReactionAsync(emote);
             }
         }
     }

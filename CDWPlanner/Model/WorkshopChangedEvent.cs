@@ -18,7 +18,7 @@ namespace CDWPlanner.Model
         }
 
         public bool BeginTimeChanged => OldWorkshop.begintimeAsShortTime != NewWorkshop.begintimeAsShortTime;
-        public bool EndTimeChanged => OldWorkshop.begintimeAsShortTime != NewWorkshop.begintimeAsShortTime;
+        public bool EndTimeChanged => OldWorkshop.endtimeAsShortTime != NewWorkshop.endtimeAsShortTime;
 
         public bool TimeHasChanged => BeginTimeChanged || EndTimeChanged;
     }

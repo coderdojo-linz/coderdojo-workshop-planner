@@ -59,7 +59,7 @@ namespace CDWPlanner
             {
                 Token = discordBotToken,
                 GuildId = ulong.TryParse(rawGuildId, out var guildId) ? guildId : 704990064039559238,
-                ChannelId = ulong.TryParse(rawChannelId, out var channelId) ? guildId : 719867879054377092
+                ChannelId = ulong.TryParse(rawChannelId, out var channelId) ? channelId : 719867879054377092
             });
 
             builder.Services.AddSingleton<IDiscordBotService, DiscordBotService>();

@@ -16,7 +16,10 @@ using MongoDB.Driver.Linq;
 using Microsoft.Azure.WebJobs.ServiceBus;
 using CDWPlanner.DTO;
 using System.Text;
+using System.Threading;
 using CDWPlanner.Constants;
+using Microsoft.Azure.ServiceBus;
+using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 
 namespace CDWPlanner
 {
@@ -27,15 +30,25 @@ namespace CDWPlanner
         private readonly IPlanZoomMeeting planZoomMeeting;
         private readonly IDiscordBotService discordBot;
         private readonly NewsletterHtmlBuilder htmlBuilder;
+        private readonly ServiceBusConnection _serviceBusConnection;
         private readonly EmailContentBuilder emailBuilder;
 
-        public PlanEvent(IDataAccess dataAccess, IDiscordBotService discordBot, IGitHubFileReader fileReader,
-            IPlanZoomMeeting planZoomMeeting, EmailContentBuilder emailBuilder, NewsletterHtmlBuilder htmlBuilder)
+        public PlanEvent
+        (
+            IDataAccess dataAccess, 
+            IDiscordBotService discordBot, 
+            IGitHubFileReader fileReader,
+            IPlanZoomMeeting planZoomMeeting, 
+            EmailContentBuilder emailBuilder, 
+            NewsletterHtmlBuilder htmlBuilder,
+            ServiceBusConnection serviceBusConnection
+        )
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
+            _serviceBusConnection = serviceBusConnection;
             this.emailBuilder = emailBuilder;
             this.discordBot = discordBot;
         }
@@ -87,9 +100,11 @@ namespace CDWPlanner
         // Subscribtion of PlanEvent Topic
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
-        public async Task WriteEventToDB(
+        public async Task WriteEventToDB
+        (
             [ServiceBusTrigger("workshopupdate", "transfer-to-db", Connection = "ServiceBusConnection")] string workshopJson,
-            ILogger log)
+            ILogger log
+        )
         {
             // Now it's JSON
             var workshopOperation = JsonSerializer.Deserialize<WorkshopOperation>(workshopJson);
@@ -122,7 +137,6 @@ namespace CDWPlanner
 
             foreach (var workshop in workshopOperation.Workshops.workshops.Where(ws => ws.status != WorkshopStatus.Draft).OrderBy(ws => ws.begintime))
             {
-
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
                 workshop.zoom = string.Empty;
@@ -151,9 +165,9 @@ namespace CDWPlanner
                     }
                 }
 
-                var messageMetaData = await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent);
+                var messageMetaData = await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent, existingMeeting);
                 workshop.discordMessage = messageMetaData;
-                
+
                 workshopData.Add(workshop.ToBsonDocument(parsedDateEvent));
             }
 
@@ -169,7 +183,23 @@ namespace CDWPlanner
             }
 
             log.LogInformation("Successfully written data to db");
+        }
 
+        private async Task ScheduleCallback(Workshop workshop)
+        {
+            var msg = new Message()
+            {
+                ScheduledEnqueueTimeUtc = DateTime.Now,
+            };
+
+            ISubscriptionClient cli = null;
+            //new TopicClient()
+            var conn = new ServiceBusConnection("");
+            var _topicClient = new TopicClient(conn, "WakeupTimer", RetryPolicy.Default);
+            var seq = await _topicClient.ScheduleMessageAsync(msg, DateTimeOffset.Now);
+
+
+            await _topicClient.CancelScheduledMessageAsync(seq);
         }
 
         // Get the workshop body array
@@ -237,7 +267,5 @@ namespace CDWPlanner
             }
             return new OkObjectResult("Email wurde erfolgreich verschickt");
         }
-
-
     }
 }
