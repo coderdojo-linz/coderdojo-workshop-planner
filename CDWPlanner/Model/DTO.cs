@@ -10,6 +10,7 @@ namespace CDWPlanner.DTO
     {
         public Commit commit { get; set; }
     }
+
     public class Commit
     {
         public string id { get; set; }
@@ -48,6 +49,7 @@ namespace CDWPlanner.DTO
     public class Workshop
     {
         private string ToIcsString(string time) => DateTime.Parse(time).ToString("yyyyMMddTHHmmss");
+
         private string ExtractShortTime(string time) => DateTime.Parse(time).ToString("HH:mm");
 
         public string begintime { get; set; }
@@ -72,10 +74,18 @@ namespace CDWPlanner.DTO
         [BsonElement("discordMessage")]
         public DiscordMessage discordMessage { get; set; }
 
+        public long? callbackMessageSequenceNumber { get; set; }
+
+        /// <summary>
+        /// Used for the callbackmessage.
+        /// Ensuring the right message gets the job and doesnt fire twice
+        /// </summary>
+        public Guid uniqueStateId { get; set; } 
+
         public BsonDocument ToBsonDocument(DateTime baseDate) =>
             new BsonDocument {
-                { "begintime" ,baseDate.Add(TimeSpan.Parse(begintime)).ToString("o") },
-                { "endtime" , baseDate.Add(TimeSpan.Parse(endtime)).ToString("o")},
+                { "begintime" , baseDate.Add(TimeSpan.Parse(begintime)).ToString("o") },
+                { "endtime" ,  baseDate.Add(TimeSpan.Parse(endtime)).ToString("o")},
                 { "title" , title},
                 { "targetAudience" , targetAudience},
                 { "description" , description},
@@ -84,6 +94,8 @@ namespace CDWPlanner.DTO
                 { "zoomUser" , zoomUser },
                 { "zoom" , zoom },
                 { "shortCode" , shortCode },
+                { "callbackMessageSequenceNumber" , callbackMessageSequenceNumber },
+                { "uniqueStateId" , uniqueStateId },
                 { "discordMessage" , (discordMessage ?? new DiscordMessage()).ToBsonDocument() },
             };
     }
@@ -117,6 +129,7 @@ namespace CDWPlanner.DTO
     {
         public List<Workshop> workshops { get; set; }
     }
+
     public class Settings
     {
         public bool host_video { get; set; }
@@ -221,7 +234,6 @@ namespace CDWPlanner.DTO
         public int page_size { get; set; }
         public int total_records { get; set; }
         public List<User> users { get; set; }
-
     }
 
     public class FolderFileInfo
@@ -235,6 +247,7 @@ namespace CDWPlanner.DTO
     {
         // added, modified
         public string Operation { get; set; }
+
         public FolderFileInfo FolderInfo { get; set; }
         public WorkshopsRoot Workshops { get; set; }
     }

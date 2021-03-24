@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -18,6 +19,8 @@ using CDWPlanner.DTO;
 using System.Text;
 using System.Threading;
 using CDWPlanner.Constants;
+using CDWPlanner.Model;
+using CDWPlanner.Services;
 using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 
@@ -30,25 +33,28 @@ namespace CDWPlanner
         private readonly IPlanZoomMeeting planZoomMeeting;
         private readonly IDiscordBotService discordBot;
         private readonly NewsletterHtmlBuilder htmlBuilder;
-        private readonly ServiceBusConnection _serviceBusConnection;
+        private readonly ReminderService _reminderService;
+        private readonly ILogger<PlanEvent> _logger;
         private readonly EmailContentBuilder emailBuilder;
 
         public PlanEvent
         (
-            IDataAccess dataAccess, 
-            IDiscordBotService discordBot, 
+            IDataAccess dataAccess,
+            IDiscordBotService discordBot,
             IGitHubFileReader fileReader,
-            IPlanZoomMeeting planZoomMeeting, 
-            EmailContentBuilder emailBuilder, 
+            IPlanZoomMeeting planZoomMeeting,
+            EmailContentBuilder emailBuilder,
             NewsletterHtmlBuilder htmlBuilder,
-            ServiceBusConnection serviceBusConnection
+            ReminderService reminderService,
+            ILogger<PlanEvent> logger
         )
         {
             this.fileReader = fileReader;
             this.dataAccess = dataAccess;
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
-            _serviceBusConnection = serviceBusConnection;
+            _reminderService = reminderService;
+            _logger = logger;
             this.emailBuilder = emailBuilder;
             this.discordBot = discordBot;
         }
@@ -96,7 +102,28 @@ namespace CDWPlanner
 
             return new AcceptedResult();
         }
+        
+        [FunctionName("WakeupTimerCallback")]
+        public async Task WakeupTimerCallback
+        (
+            [ServiceBusTrigger("wakeuptimer", "callback", Connection = "ServiceBusConnection")] string messageRaw,
+            ILogger logger
+        )
+        {
+            logger.LogInformation("Received wakeup call!");
+            var message = JsonSerializer.Deserialize<CallbackMessage>(messageRaw);
+            var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(message.Date.Date);
 
+            var workShop = dbEventsFound.workshops.FirstOrDefault(x => x.uniqueStateId == message.UniqueStateId);
+            if (workShop == null)
+            {
+                logger.LogInformation("Received outdated workshop");
+                return;
+            }
+
+            await discordBot.NotifyWorkshopBeginsAsync(workShop);
+        }
+        
         // Subscribtion of PlanEvent Topic
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
@@ -135,40 +162,43 @@ namespace CDWPlanner
             var userNum = 0;
             var hostKey = string.Empty;
 
-            foreach (var workshop in workshopOperation.Workshops.workshops.Where(ws => ws.status != WorkshopStatus.Draft).OrderBy(ws => ws.begintime))
+            foreach (var incomingWorkShop in workshopOperation.Workshops.workshops.Where(ws => ws.status != WorkshopStatus.Draft).OrderBy(ws => ws.begintime))
             {
+                var dbWorkshop = dbEventsFound?.workshops.FirstOrDefault(dbws => dbws.shortCode == incomingWorkShop.shortCode);
+
                 var userId = $"zoom0{userNum % 4 + 1}@linz.coderdojo.net";
                 userNum++;
-                workshop.zoom = string.Empty;
-                workshop.zoomUser = string.Empty;
+                incomingWorkShop.zoom = string.Empty;
+                incomingWorkShop.zoomUser = string.Empty;
 
                 // Find meeting in meeting buffer
-                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, workshop.shortCode, parsedDateEvent);
+                var existingMeeting = planZoomMeeting.GetExistingMeeting(existingMeetingBuffer, incomingWorkShop.shortCode, parsedDateEvent);
 
                 // Create or update meeting
-                if (workshop.status == WorkshopStatus.Scheduled)
+                if (incomingWorkShop.status == WorkshopStatus.Scheduled)
                 {
                     if (existingMeeting != null)
                     {
                         log.LogInformation("Updating Meeting");
-                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, workshop.begintime, dateFolder, workshop.title, workshop.description, workshop.shortCode, userId);
-                        workshop.zoom = existingMeeting.join_url;
+                        planZoomMeeting.UpdateMeetingAsync(existingMeeting, incomingWorkShop.begintime, dateFolder, incomingWorkShop.title, incomingWorkShop.description, incomingWorkShop.shortCode, userId);
+                        incomingWorkShop.zoom = existingMeeting.join_url;
                         var user = planZoomMeeting.GetUser(usersBuffer, existingMeeting.host_id);
-                        workshop.zoomUser = user.email;
+                        incomingWorkShop.zoomUser = user.email;
                     }
                     else
                     {
                         log.LogInformation("Creating Meeting");
-                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(workshop.begintime, dateFolder, workshop.title, workshop.description, workshop.shortCode, userId);
-                        workshop.zoom = getLinkData.join_url;
-                        workshop.zoomUser = userId;
+                        var getLinkData = await planZoomMeeting.CreateZoomMeetingAsync(incomingWorkShop.begintime, dateFolder, incomingWorkShop.title, incomingWorkShop.description, incomingWorkShop.shortCode, userId);
+                        incomingWorkShop.zoom = getLinkData.join_url;
+                        incomingWorkShop.zoomUser = userId;
                     }
                 }
 
-                var messageMetaData = await discordBot.SendDiscordBotMessage(workshop, dbEventsFound, parsedDateEvent, existingMeeting);
-                workshop.discordMessage = messageMetaData;
+                var messageMetaData = await discordBot.SendDiscordBotMessage(incomingWorkShop, dbWorkshop, parsedDateEvent, existingMeeting);
+                incomingWorkShop.discordMessage = messageMetaData;
+                await _reminderService.ScheduleCallback(dbWorkshop, parsedDateEvent, incomingWorkShop);
 
-                workshopData.Add(workshop.ToBsonDocument(parsedDateEvent));
+                workshopData.Add(incomingWorkShop.ToBsonDocument(parsedDateEvent));
             }
 
             // Check wheather a new file exists, create/or modifie it
@@ -185,23 +215,7 @@ namespace CDWPlanner
             log.LogInformation("Successfully written data to db");
         }
 
-        private async Task ScheduleCallback(Workshop workshop)
-        {
-            var msg = new Message()
-            {
-                ScheduledEnqueueTimeUtc = DateTime.Now,
-            };
-
-            ISubscriptionClient cli = null;
-            //new TopicClient()
-            var conn = new ServiceBusConnection("");
-            var _topicClient = new TopicClient(conn, "WakeupTimer", RetryPolicy.Default);
-            var seq = await _topicClient.ScheduleMessageAsync(msg, DateTimeOffset.Now);
-
-
-            await _topicClient.CancelScheduledMessageAsync(seq);
-        }
-
+        
         // Get the workshop body array
         [FunctionName("GetDBContentForHtml")]
         public async Task<IActionResult> GetDBContentForHtml(

@@ -9,8 +9,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Castle.Core.Logging;
 using Castle.DynamicProxy.Generators.Emitters.SimpleAST;
 using CDWPlanner.Constants;
+using CDWPlanner.Helpers;
 using CDWPlanner.Model;
 using Discord;
 using Discord.Rest;
@@ -22,8 +24,10 @@ namespace CDWPlanner
         //Task SendDiscordBotMessage(string msg);
 
         //string BuildBotMessage(Workshop currentWS, Event cdEvent, Meeting existingMeeting, DateTime date);
-        Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Event cdEvent, DateTime date,
+        Task<DiscordMessage> SendDiscordBotMessage(Workshop currentWS, Workshop cdEvent, DateTime date,
             Meeting existingMeeting);
+
+        Task NotifyWorkshopBeginsAsync(Workshop workShop);
     };
 
     public class DiscordBotService : IDiscordBotService
@@ -32,11 +36,18 @@ namespace CDWPlanner
 
         private readonly IDiscordClient _discordClient;
         private readonly DiscordSettings _settings;
+        private readonly ILogger _logger;
 
-        public DiscordBotService(IDiscordClient discordClient, DiscordSettings settings)
+        public DiscordBotService
+        (
+            IDiscordClient discordClient,
+            DiscordSettings settings,
+            ILogger logger
+        )
         {
             _discordClient = discordClient;
             this._settings = settings;
+            _logger = logger;
         }
 
         /// <summary>
@@ -68,19 +79,19 @@ namespace CDWPlanner
             }
         }
 
+        private readonly Emoji ThumbsUpEmote = new Emoji("\U0001F44D");
+
         public async Task<DiscordMessage> SendDiscordBotMessage
         (
             Workshop currentWorkshop,
-            Event cdEvent,
+            Workshop dbWorkshop,
             DateTime date,
             Meeting existingMeeting
         )
         {
             Embed embedMessageToSend;
             await EnsureClientLoggedIn();
-            var thumbsUpEmote = new Emoji("\U0001F44D");
 
-            var dbWorkshop = cdEvent?.workshops.FirstOrDefault(dbws => dbws.shortCode == currentWorkshop.shortCode);
             var discordMessage = GetDiscordMessage(dbWorkshop);
             var messageContext = await DiscordMessageContext.CreateAsync(_discordClient, discordMessage);
 
@@ -89,21 +100,47 @@ namespace CDWPlanner
             {
                 embedMessageToSend = BuildEmbed(currentWorkshop, date, true);
                 await messageContext.SendAsync(embedMessageToSend);
-                await messageContext.AddReactionAsync(thumbsUpEmote);
+                await messageContext.AddReactionAsync(ThumbsUpEmote);
                 return messageContext.Message;
             }
 
-            if (!WorkshopChanged(currentWorkshop, dbWorkshop, existingMeeting))
+            if (!WorkshopChanged(dbWorkshop, currentWorkshop, existingMeeting))
             {
                 return messageContext.Message;
             }
 
             embedMessageToSend = BuildEmbed(currentWorkshop, date, false);
             await messageContext.UpdateAsync(x => x.Embed = new Optional<Embed>(embedMessageToSend));
-            await ResetReactionsIfNecessary(currentWorkshop, thumbsUpEmote, dbWorkshop, messageContext.UserMessage);
-
+            await ResetReactionsIfNecessary(currentWorkshop, ThumbsUpEmote, dbWorkshop, messageContext.UserMessage);
 
             return discordMessage;
+        }
+
+        public async Task NotifyWorkshopBeginsAsync(Workshop workShop)
+        {
+            await EnsureClientLoggedIn();
+            var discordMessage = GetDiscordMessage(workShop);
+            var messageContext = await DiscordMessageContext.CreateAsync(_discordClient, discordMessage);
+            if (messageContext.UserMessage == null)
+            {
+                return;
+            }
+
+            var mentions = await messageContext.UserMessage.GetReactionUsersAsync(ThumbsUpEmote, 1000)
+                .SelectMany(x => x.ToAsyncEnumerable())
+                .Where(x => !x.IsBot && x.Id != _discordClient.CurrentUser.Id)
+                .Select(x => x.GetMentionString())
+                .ToListAsync();
+
+            if (!mentions.Any())
+            {
+                return;
+            }
+
+            var guild = await _discordClient.GetGuildAsync(_settings.GuildId);
+            var channel = await guild.GetTextChannelAsync(_settings.ChannelId);
+
+            await channel.SendMessageAsync($"Aufgepasst! Der Workshop {workShop.title} beginnt in Kürze! {string.Join(" ", mentions)}");
         }
 
         private DiscordMessage GetDiscordMessage(Workshop dbWorkshop)
@@ -121,8 +158,7 @@ namespace CDWPlanner
                 return;
             }
 
-            var changeEvent = new WorkshopChangedEvent(dbWorkshop, currentWorkshop);
-            if (!changeEvent.TimeHasChanged)
+            if (!WorkshopHelpers.TimeHasChanged(dbWorkshop, currentWorkshop))
             {
                 return;
             }
@@ -139,8 +175,8 @@ namespace CDWPlanner
                 // Notify user that time has changed
                 var affectedTimes = new string[]
                 {
-                    !changeEvent.BeginTimeChanged ? string.Empty : "Startzeit",
-                    !changeEvent.EndTimeChanged ? string.Empty : "Endzeit"
+                    !WorkshopHelpers.BeginTimeChanged(dbWorkshop, currentWorkshop) ? string.Empty : "Startzeit",
+                    !WorkshopHelpers.EndTimeChanged(dbWorkshop, currentWorkshop) ? string.Empty : "Endzeit"
                 }.Where(x => !string.IsNullOrEmpty(x));
 
                 var affectedTimeString = string.Join(" und ", affectedTimes);
@@ -170,7 +206,7 @@ namespace CDWPlanner
         {
             return await DiscordMessageContext.CreateAsync(_discordClient, discordMessage);
         }
-        
+
         private Embed BuildEmbed(Workshop workshop, DateTime date, bool isNew)
         {
             var eb = new EmbedBuilder()
@@ -258,21 +294,9 @@ namespace CDWPlanner
             }
         }
 
-        public bool WorkshopChanged(Workshop currentWS, Workshop wsFromDB, Meeting existingMeeting)
+        public bool WorkshopChanged(Workshop wsFromDB, Workshop currentWS, Meeting existingMeeting)
         {
-            // Workshop does not exist yet
-            if (wsFromDB == null)
-            {
-                return true;
-            }
-
-            // Event is not new and workshop is not new
-
-            return currentWS.title != wsFromDB.title
-                   || currentWS.description != wsFromDB.description
-                   || currentWS.begintime != wsFromDB.begintimeAsShortTime
-                   || currentWS.endtime != wsFromDB.endtimeAsShortTime
-                   || currentWS.prerequisites != wsFromDB.prerequisites
+            return WorkshopHelpers.WorkshopChanged(wsFromDB, currentWS)
                    || currentWS.status == "Scheduled" && existingMeeting == null;
         }
 
@@ -313,7 +337,7 @@ namespace CDWPlanner
                 {
                     message.MessageId = null;
                 }
-                
+
                 return new DiscordMessageContext(client, message, server, channel, msg);
             }
 
@@ -336,5 +360,10 @@ namespace CDWPlanner
                 await UserMessage.AddReactionAsync(emote);
             }
         }
+    }
+
+    public static class DiscordBotExtensions
+    {
+        public static string GetMentionString(this IUser user) => $"<@!{user.Id}>";
     }
 }

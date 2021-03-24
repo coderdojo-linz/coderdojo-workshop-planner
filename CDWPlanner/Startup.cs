@@ -4,8 +4,10 @@ using System;
 using System.Net;
 using System.Runtime.CompilerServices;
 using CDWPlanner.Model;
+using CDWPlanner.Services;
 using Discord;
 using Discord.Rest;
+using Microsoft.Azure.ServiceBus;
 
 [assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
 [assembly: InternalsVisibleTo("CDWPlanner.Tests")]
@@ -40,8 +42,19 @@ namespace CDWPlanner
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
             builder.Services.AddSingleton<NewsletterHtmlBuilder>();
             builder.Services.AddSingleton<EmailContentBuilder>();
+            builder.Services.AddTransient<ReminderService>();
 
             ConfigureDiscordBot(builder);
+            ConfigureServiceBus(builder);
+        }
+
+        private void ConfigureServiceBus(IFunctionsHostBuilder builder)
+        {
+            var connectionString = Environment.GetEnvironmentVariable("ServiceBusConnection", EnvironmentVariableTarget.Process);
+            var connection = new ServiceBusConnection(connectionString);
+            //var wakeupTimerConnection = new TopicClient(connection, "WakeupTimer", RetryPolicy.Default);
+            builder.Services.AddSingleton(connection);
+
         }
 
         private static void ConfigureDiscordBot(IFunctionsHostBuilder builder)
