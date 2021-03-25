@@ -214,9 +214,15 @@ namespace CDWPlanner
                 .WithDescription(workshop.description)
                 .AddField("Datum", $"{date:dd.MM.yyyy}", true)
                 .AddField("Zeit", $"{workshop.begintimeAsShortTime}-{workshop.endtimeAsShortTime}", true)
-                .AddField(workshop.mentors.Count > 1 ? "Mentors" : "Mentor", GetMentorsText(workshop.mentors), true)
-                .AddField("Zoom", workshop.zoom) // TODO: Link shortener ("https://meet.coderdojo.net/COOLMEETINGID")
-                .WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
+                .AddField(workshop.mentors.Count > 1 ? "Mentors" : "Mentor", GetMentorsText(workshop.mentors), true);
+
+            var meetingLink = workshop.zoomShort?.ShortLink ?? workshop.zoom;
+            if (!string.IsNullOrEmpty(meetingLink))
+            {
+                eb.AddField("Zoom", meetingLink);
+            }
+
+            eb = eb.WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
                 .WithColor(Color.Red)
                 .WithUrl("https://linz.coderdojo.net/termine/") //TODO: Implement direct navigation support on site
                 .WithFooter(x => x.WithText("Reagiere mit \U0001F44D, um benachrichtigt zu werden")); // Thumbsup

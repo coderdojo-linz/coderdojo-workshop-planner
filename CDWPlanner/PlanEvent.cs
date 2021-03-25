@@ -34,6 +34,8 @@ namespace CDWPlanner
         private readonly IDiscordBotService discordBot;
         private readonly NewsletterHtmlBuilder htmlBuilder;
         private readonly ReminderService _reminderService;
+        private readonly LinkShortenerService _linkShortenerService;
+        private readonly LinkShortenerSettings _linkShortenerSettings;
         private readonly ILogger<PlanEvent> _logger;
         private readonly EmailContentBuilder emailBuilder;
 
@@ -46,6 +48,8 @@ namespace CDWPlanner
             EmailContentBuilder emailBuilder,
             NewsletterHtmlBuilder htmlBuilder,
             ReminderService reminderService,
+            LinkShortenerService linkShortenerService,
+            LinkShortenerSettings linkShortenerSettings,
             ILogger<PlanEvent> logger
         )
         {
@@ -54,6 +58,8 @@ namespace CDWPlanner
             this.planZoomMeeting = planZoomMeeting;
             this.htmlBuilder = htmlBuilder;
             _reminderService = reminderService;
+            _linkShortenerService = linkShortenerService;
+            _linkShortenerSettings = linkShortenerSettings;
             _logger = logger;
             this.emailBuilder = emailBuilder;
             this.discordBot = discordBot;
@@ -102,28 +108,7 @@ namespace CDWPlanner
 
             return new AcceptedResult();
         }
-        
-        [FunctionName("WakeupTimerCallback")]
-        public async Task WakeupTimerCallback
-        (
-            [ServiceBusTrigger("wakeuptimer", "callback", Connection = "ServiceBusConnection")] string messageRaw,
-            ILogger logger
-        )
-        {
-            logger.LogInformation("Received wakeup call!");
-            var message = JsonSerializer.Deserialize<CallbackMessage>(messageRaw);
-            var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(message.Date.Date);
 
-            var workShop = dbEventsFound.workshops.FirstOrDefault(x => x.uniqueStateId == message.UniqueStateId);
-            if (workShop == null)
-            {
-                logger.LogInformation("Received outdated workshop");
-                return;
-            }
-
-            await discordBot.NotifyWorkshopBeginsAsync(workShop);
-        }
-        
         // Subscribtion of PlanEvent Topic
         // Writes data to MongoDB
         [FunctionName("WriteEventToDB")]
@@ -192,6 +177,30 @@ namespace CDWPlanner
                         incomingWorkShop.zoom = getLinkData.join_url;
                         incomingWorkShop.zoomUser = userId;
                     }
+
+                    if (dbWorkshop?.zoomShort != null)
+                    {
+                        if (dbWorkshop.zoomShort.Url == incomingWorkShop.zoom)
+                        {
+                            incomingWorkShop.zoomShort = dbWorkshop.zoomShort;
+                        }
+                        else
+                        {
+                            //dbWorkshop.zoomShort.Id
+                            var id = incomingWorkShop.shortCode;
+                            var accessKey = dbWorkshop.zoomShort.Id == incomingWorkShop.shortCode
+                                ? dbWorkshop.zoomShort.AccessKey
+                                : _linkShortenerSettings.AccessKey;
+
+                            incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(id, accessKey, incomingWorkShop.zoom);
+                        }
+                    }
+                    else
+                    {
+                        // Def. create new
+
+                        incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(incomingWorkShop.shortCode, _linkShortenerSettings.AccessKey, incomingWorkShop.zoom);
+                    }
                 }
 
                 var messageMetaData = await discordBot.SendDiscordBotMessage(incomingWorkShop, dbWorkshop, parsedDateEvent, existingMeeting);
@@ -215,7 +224,27 @@ namespace CDWPlanner
             log.LogInformation("Successfully written data to db");
         }
 
-        
+        [FunctionName("WakeupTimerCallback")]
+        public async Task WakeupTimerCallback
+        (
+            [ServiceBusTrigger("wakeuptimer", "callback", Connection = "ServiceBusConnection")] string messageRaw,
+            ILogger logger
+        )
+        {
+            logger.LogInformation("Received wakeup call!");
+            var message = JsonSerializer.Deserialize<CallbackMessage>(messageRaw);
+            var dbEventsFound = await dataAccess.ReadEventForDateFromDBAsync(message.Date.Date);
+
+            var workShop = dbEventsFound.workshops.FirstOrDefault(x => x.uniqueStateId == message.UniqueStateId);
+            if (workShop == null)
+            {
+                logger.LogInformation("Received outdated workshop");
+                return;
+            }
+
+            await discordBot.NotifyWorkshopBeginsAsync(workShop);
+        }
+
         // Get the workshop body array
         [FunctionName("GetDBContentForHtml")]
         public async Task<IActionResult> GetDBContentForHtml(

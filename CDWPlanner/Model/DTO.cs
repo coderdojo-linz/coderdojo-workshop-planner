@@ -2,6 +2,7 @@
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using CDWPlanner.Model;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace CDWPlanner.DTO
@@ -70,6 +71,7 @@ namespace CDWPlanner.DTO
         public string shortCode { get; set; }
         public string zoomUser { get; set; }
         public string zoom { get; set; }
+        public ShortenedLink zoomShort { get; set; }
 
         [BsonElement("discordMessage")]
         public DiscordMessage discordMessage { get; set; }
@@ -97,6 +99,7 @@ namespace CDWPlanner.DTO
                 { "callbackMessageSequenceNumber" , callbackMessageSequenceNumber },
                 { "uniqueStateId" , uniqueStateId },
                 { "discordMessage" , (discordMessage ?? new DiscordMessage()).ToBsonDocument() },
+                { "zoomShort" , zoomShort.ToBsonDocument() },
             };
     }
 

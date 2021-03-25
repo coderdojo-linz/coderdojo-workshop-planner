@@ -37,12 +37,26 @@ namespace CDWPlanner
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
             });
 
+            builder.Services.AddHttpClient("linkshortener", c =>
+            {
+                c.BaseAddress = new Uri("https://meet.coderdojo.net/api/");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
+            });
+
+      
+
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
             builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
             builder.Services.AddSingleton<NewsletterHtmlBuilder>();
             builder.Services.AddSingleton<EmailContentBuilder>();
             builder.Services.AddTransient<ReminderService>();
+            builder.Services.AddTransient<LinkShortenerService>();
+
+            var lsAccessKey = Environment.GetEnvironmentVariable("LINKSHORTENER_ACCESSKEY", EnvironmentVariableTarget.Process);
+
+            builder.Services.AddSingleton(new LinkShortenerSettings(lsAccessKey));
 
             ConfigureDiscordBot(builder);
             ConfigureServiceBus(builder);
@@ -54,7 +68,6 @@ namespace CDWPlanner
             var connection = new ServiceBusConnection(connectionString);
             //var wakeupTimerConnection = new TopicClient(connection, "WakeupTimer", RetryPolicy.Default);
             builder.Services.AddSingleton(connection);
-
         }
 
         private static void ConfigureDiscordBot(IFunctionsHostBuilder builder)
