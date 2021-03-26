@@ -1,10 +1,15 @@
 ﻿using CDWPlanner.DTO;
+
 using Microsoft.Extensions.Logging;
+
 using MongoDB.Bson;
+
 using Moq;
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+
 using Xunit;
 
 namespace CDWPlanner.Tests
@@ -26,11 +31,12 @@ namespace CDWPlanner.Tests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new Meeting { join_url = "Dummy" }));
-            
-            var discordBotMock = new Mock<IDiscordBot>();
-            discordBotMock.Setup(d => d.BuildBotMessage(
-                It.IsAny<Workshop>(), It.IsAny<Event>(), It.IsAny<Meeting>(), It.IsAny<DateTime>()))
-                .Returns("Test");
+
+            var discordBotMock = new Mock<IDiscordBotService>();
+
+            //discordBotMock.Setup(d => d.BuildBotMessage(
+            //    It.IsAny<Workshop>(), It.IsAny<Event>(), It.IsAny<Meeting>(), It.IsAny<DateTime>()))
+            //    .Returns("Test");
 
             var func = new PlanEvent(dataAccessMock.Object, discordBotMock.Object, null, planZoomMeetingMock.Object, null, null);
             await func.WriteEventToDB(@"
@@ -69,7 +75,8 @@ namespace CDWPlanner.Tests
         [Fact]
         public void ConvertWorkshopToBson()
         {
-            var workshop = new Workshop {
+            var workshop = new Workshop
+            {
                 begintime = "13:45",
                 endtime = "15:45",
                 description = "TestDescription *with* markup",

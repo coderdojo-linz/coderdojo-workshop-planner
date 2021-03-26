@@ -3,13 +3,18 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Net;
 using System.Runtime.CompilerServices;
+using CDWPlanner.Model;
+using CDWPlanner.Services;
+using Discord;
+using Discord.Rest;
+using Microsoft.Azure.ServiceBus;
 
 [assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
 [assembly: InternalsVisibleTo("CDWPlanner.Tests")]
 
 namespace CDWPlanner
 {
-    class Startup : FunctionsStartup
+    internal class Startup : FunctionsStartup
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
@@ -32,21 +37,58 @@ namespace CDWPlanner
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
             });
 
-            var discordChannelUrl = Environment.GetEnvironmentVariable("DISCORDCHANNEL", EnvironmentVariableTarget.Process);
-            builder.Services.AddHttpClient("discord", c =>
+            builder.Services.AddHttpClient("linkshortener", c =>
             {
-                c.BaseAddress = new Uri($"https://discordapp.com/api/webhooks/{discordChannelUrl}");
+                c.BaseAddress = new Uri("https://meet.coderdojo.net/api/");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
-                c.DefaultRequestHeaders.Add("Timeout", "1000000000");
             });
+
+      
 
             builder.Services.AddSingleton<IGitHubFileReader, GitHubFileReader>();
             builder.Services.AddSingleton<IPlanZoomMeeting, PlanZoomMeeting>();
             builder.Services.AddSingleton<IDataAccess, DataAccess>();
-            builder.Services.AddSingleton<IDiscordBot, DiscordBot>();
             builder.Services.AddSingleton<NewsletterHtmlBuilder>();
             builder.Services.AddSingleton<EmailContentBuilder>();
+            builder.Services.AddTransient<ReminderService>();
+            builder.Services.AddTransient<LinkShortenerService>();
+
+            var lsAccessKey = Environment.GetEnvironmentVariable("LINKSHORTENER_ACCESSKEY", EnvironmentVariableTarget.Process);
+
+            builder.Services.AddSingleton(new LinkShortenerSettings(lsAccessKey));
+
+            ConfigureDiscordBot(builder);
+            ConfigureServiceBus(builder);
+        }
+
+        private void ConfigureServiceBus(IFunctionsHostBuilder builder)
+        {
+            var connectionString = Environment.GetEnvironmentVariable("ServiceBusConnection", EnvironmentVariableTarget.Process);
+            var connection = new ServiceBusConnection(connectionString);
+            //var wakeupTimerConnection = new TopicClient(connection, "WakeupTimer", RetryPolicy.Default);
+            builder.Services.AddSingleton(connection);
+        }
+
+        private static void ConfigureDiscordBot(IFunctionsHostBuilder builder)
+        {
+            builder.Services.AddSingleton<IDiscordClient>(new DiscordRestClient(new DiscordRestConfig
+            {
+                DefaultRetryMode = RetryMode.AlwaysRetry
+            }));
+
+            var discordBotToken = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN", EnvironmentVariableTarget.Process);
+            var rawGuildId = Environment.GetEnvironmentVariable("DISCORD_BOT_GUILD_ID", EnvironmentVariableTarget.Process);
+            var rawChannelId = Environment.GetEnvironmentVariable("DISCORD_BOT_CHANNEL_ID", EnvironmentVariableTarget.Process);
+
+            builder.Services.AddSingleton(new DiscordSettings()
+            {
+                Token = discordBotToken,
+                GuildId = ulong.TryParse(rawGuildId, out var guildId) ? guildId : 704990064039559238,
+                ChannelId = ulong.TryParse(rawChannelId, out var channelId) ? channelId : 719867879054377092
+            });
+
+            builder.Services.AddSingleton<IDiscordBotService, DiscordBotService>();
         }
     }
 }

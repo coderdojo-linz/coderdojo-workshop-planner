@@ -12,9 +12,13 @@ namespace CDWPlanner
     public interface IDataAccess
     {
         Task<Event> ReadEventForDateFromDBAsync(DateTime date);
+
         Task InsertIntoDBAsync(DateTime parsedDateEvent, BsonArray workshopData);
+
         Task ReplaceDataOfDBAsync(DateTime parsedDateEvent, BsonArray workshopData);
+
         Task<IEnumerable<Event>> ReadEventsFromDBAsync(bool past);
+
         Task<IEnumerable<Mentor>> ReadMentorsFromDBAsync();
     };
 
@@ -34,15 +38,12 @@ namespace CDWPlanner
         /// </summary>
         private IMongoCollection<BsonDocument> GetCollectionFromServer(string dbCollectionString)
         {
-            var dbUser = Environment.GetEnvironmentVariable("MONGOUSER", EnvironmentVariableTarget.Process);
-            var dbPassword = Environment.GetEnvironmentVariable("MONGOPASSWORD", EnvironmentVariableTarget.Process);
-            var dbString = Environment.GetEnvironmentVariable("MONGODB", EnvironmentVariableTarget.Process);
-            var dbConnection = Environment.GetEnvironmentVariable("MONGOCONNECTION", EnvironmentVariableTarget.Process);
+            var connectionString = Environment.GetEnvironmentVariable("MONGODB_CONNECTIONSTRING", EnvironmentVariableTarget.Process);
+            var database = Environment.GetEnvironmentVariable("MONGODB_DATABASE", EnvironmentVariableTarget.Process);
 
-            var urlMongo = $"mongodb+srv://{dbUser}:{dbPassword}@{dbConnection}/{dbString}/?retryWrites=true&w=majority";
-            var dbClient = new MongoClient(urlMongo);
-
-            var dbServer = dbClient.GetDatabase($"{dbString}");
+            var dbClient = new MongoClient(connectionString);
+          
+            var dbServer = dbClient.GetDatabase(database);
             var dbCollection = dbServer.GetCollection<BsonDocument>($"{dbCollectionString}");
 
             return dbCollection;
@@ -90,7 +91,7 @@ namespace CDWPlanner
             BsonDocument dateFilter;
             if (!past)
             {
-                dateFilter = new BsonDocument("date", new BsonDocument {{ "$gte", DateTime.Today }});
+                dateFilter = new BsonDocument("date", new BsonDocument { { "$gte", DateTime.Today } });
             }
             else
             {
