@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using CDWPlanner.DTO;
 using CDWPlanner.Helpers;
 using CDWPlanner.Model;
+
 using Microsoft.Azure.ServiceBus;
 using Microsoft.Extensions.Logging;
+
 using MongoDB.Bson.IO;
 
 namespace CDWPlanner.Services
@@ -40,8 +42,12 @@ namespace CDWPlanner.Services
         {
             if (dbWorkshop != null && !WorkshopHelpers.TimeHasChanged(dbWorkshop, incomingWorkshop))
             {
-                // No time has changed; Nothing to do here ¯\_(ツ)_/¯
-                return;
+                var callbackExits = dbWorkshop.callbackMessageSequenceNumber != null;
+                if (callbackExits)
+                {
+                    // No time has changed; Nothing to do here ¯\_(ツ)_/¯
+                    return;
+                }
             }
 
             if (!TimeSpan.TryParse(incomingWorkshop.begintime, out var beginTime))
@@ -52,13 +58,15 @@ namespace CDWPlanner.Services
                 return;
             }
 
-            var beginDateTime = DateTime.SpecifyKind(eventDate + beginTime, DateTimeKind.Local).ToUniversalTime();
+            //convert from gmt + 1 to utf
+            beginTime = beginTime.Add(TimeSpan.FromHours(-1));
+            var beginDateTime = DateTime.SpecifyKind(eventDate + beginTime, DateTimeKind.Utc).ToUniversalTime();
             if (beginDateTime < DateTime.UtcNow)
             {
                 // Guess someone edited an old workshop
+                _logger.LogInformation("Time was in the past");
                 return;
             }
-
 
             var topicClient = new TopicClient(_serviceBusConnection, "wakeuptimer", RetryPolicy.Default);
 
@@ -73,7 +81,7 @@ namespace CDWPlanner.Services
                     _logger.LogError(e, "Error while trying to cancel event");
                 }
             }
-            
+
             incomingWorkshop.uniqueStateId = Guid.NewGuid();
             var scheduledEnqueueTimeUtc = beginDateTime.AddMinutes(-15);
             var msg = new Message
@@ -88,7 +96,7 @@ namespace CDWPlanner.Services
 
             var seq = await topicClient.ScheduleMessageAsync(msg, scheduledEnqueueTimeUtc);
             incomingWorkshop.callbackMessageSequenceNumber = seq;
-            Console.WriteLine("Enqueued new callback message!");
+            _logger.LogInformation($"Enqueued new callback message at {scheduledEnqueueTimeUtc}");
         }
     }
 }

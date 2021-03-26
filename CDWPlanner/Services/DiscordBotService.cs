@@ -224,7 +224,7 @@ namespace CDWPlanner
 
             eb = eb.WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
                 .WithColor(Color.Red)
-                .WithUrl("https://linz.coderdojo.net/termine/") //TODO: Implement direct navigation support on site
+                .WithUrl($"https://linz.coderdojo.net/termine/#{workshop.shortCode}") //TODO: Implement direct navigation support on site
                 .WithFooter(x => x.WithText("Reagiere mit \U0001F44D, um benachrichtigt zu werden")); // Thumbsup
 
             // Thumbnail default idee:

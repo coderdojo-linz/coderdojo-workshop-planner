@@ -361,3 +361,5 @@ MigrationBackup/
 /CDWPlanner/Properties/launchSettings.json
 /.local/dump
 /CDWPlanner/Properties/ServiceDependencies/CDWPlannerJonasTest - Zip Deploy
+/.local/Settings
+/CDWPlanner/Properties/ServiceDependencies/cdw-planner - Zip Deploy
