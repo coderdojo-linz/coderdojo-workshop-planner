@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -38,7 +39,7 @@ namespace CDWPlanner.Services
         /// <param name="eventDate"></param>
         /// <param name="incomingWorkshop"></param>
         /// <returns></returns>
-        public async Task ScheduleCallback(Workshop dbWorkshop, DateTime eventDate, Workshop incomingWorkshop)
+        public async Task ScheduleCallback(Workshop dbWorkshop, string eventDate, Workshop incomingWorkshop)
         {
             if (dbWorkshop != null && !WorkshopHelpers.TimeHasChanged(dbWorkshop, incomingWorkshop))
             {
@@ -50,18 +51,10 @@ namespace CDWPlanner.Services
                 }
             }
 
-            if (!TimeSpan.TryParse(incomingWorkshop.begintime, out var beginTime))
-            {
-                // Cannot parse begintime, better stick with that, what we got i guess
-                _logger.LogWarning($"Cannot parse begintime of {incomingWorkshop.title}: {incomingWorkshop.begintime}. " +
-                                   $"No reminder will be (re)scheduled");
-                return;
-            }
+            var beginDate = ParseTime(eventDate, incomingWorkshop.begintime).ToUniversalTime();
+            var scheduledEnqueueTimeUtc = beginDate.AddMinutes(-15);
 
-            //convert from gmt + 1 to utf
-            beginTime = beginTime.Add(TimeSpan.FromHours(-1));
-            var beginDateTime = DateTime.SpecifyKind(eventDate + beginTime, DateTimeKind.Utc).ToUniversalTime();
-            if (beginDateTime < DateTime.UtcNow)
+            if (beginDate < DateTime.UtcNow || scheduledEnqueueTimeUtc < DateTime.UtcNow)
             {
                 // Guess someone edited an old workshop
                 _logger.LogInformation("Time was in the past");
@@ -83,20 +76,36 @@ namespace CDWPlanner.Services
             }
 
             incomingWorkshop.uniqueStateId = Guid.NewGuid();
-            var scheduledEnqueueTimeUtc = beginDateTime.AddMinutes(-15);
             var msg = new Message
             {
-                ScheduledEnqueueTimeUtc = scheduledEnqueueTimeUtc,
+                ScheduledEnqueueTimeUtc = scheduledEnqueueTimeUtc.DateTime,
                 Body = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new CallbackMessage
                 {
                     UniqueStateId = incomingWorkshop.uniqueStateId,
-                    Date = beginDateTime
+                    Date = beginDate.DateTime
                 }))
             };
 
             var seq = await topicClient.ScheduleMessageAsync(msg, scheduledEnqueueTimeUtc);
             incomingWorkshop.callbackMessageSequenceNumber = seq;
             _logger.LogInformation($"Enqueued new callback message at {scheduledEnqueueTimeUtc}");
+        }
+
+        /// <summary>
+        /// Making date/time timezone aware hopefully fixes the problem....
+        /// Switching from summer to winter-time could become a problem when the workshop starts exactly then
+        /// ...but hopefully no kid will ever be forced to attend one of those horrible workshops at 0 am....
+        /// </summary>
+        /// <param name="date"></param>
+        /// <param name="time"></param>
+        /// <returns></returns>
+
+        private static DateTimeOffset ParseTime(string date, string time)
+        {
+            var tz = TimeZoneInfo.GetSystemTimeZones().First(x => x.Id == "W. Europe Standard Time");
+            var offset = tz.GetUtcOffset(DateTime.Parse(date));
+
+            return DateTimeOffset.Parse($"{date} {time} +{offset}");
         }
     }
 }

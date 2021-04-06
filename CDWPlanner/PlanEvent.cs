@@ -205,7 +205,7 @@ namespace CDWPlanner
 
                 var messageMetaData = await discordBot.SendDiscordBotMessage(incomingWorkShop, dbWorkshop, parsedDateEvent, existingMeeting);
                 incomingWorkShop.discordMessage = messageMetaData;
-                await _reminderService.ScheduleCallback(dbWorkshop, parsedDateEvent, incomingWorkShop);
+                await _reminderService.ScheduleCallback(dbWorkshop, dateFolder, incomingWorkShop);
 
                 workshopData.Add(incomingWorkShop.ToBsonDocument(parsedDateEvent));
             }
