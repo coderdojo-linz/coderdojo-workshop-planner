@@ -140,7 +140,7 @@ namespace CDWPlanner
             var guild = await _discordClient.GetGuildAsync(_settings.GuildId);
             var channel = await guild.GetTextChannelAsync(_settings.ChannelId);
 
-            await channel.SendMessageAsync($"Aufgepasst! Der Workshop {workShop.title} beginnt in Kürze! Link: {workshop.zoomShort?.ShortLink ?? workshop.zoom}\n{string.Join(" ", mentions)}");
+            await channel.SendMessageAsync($"Aufgepasst! Der Workshop {workShop.title} beginnt in Kürze! Link: {workShop.zoomShort?.ShortLink ?? workShop.zoom}\n{string.Join(" ", mentions)}");
         }
 
         private DiscordMessage GetDiscordMessage(Workshop dbWorkshop)
