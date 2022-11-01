@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using CDWPlanner.Model;
 using MongoDB.Bson.Serialization.Attributes;
+using YamlDotNet.Serialization;
 
 namespace CDWPlanner.DTO
 {
@@ -71,6 +72,7 @@ namespace CDWPlanner.DTO
         public string shortCode { get; set; }
         public string zoomUser { get; set; }
         public string zoom { get; set; }
+        public string thumbnail { get; set; }
         public ShortenedLink zoomShort { get; set; }
 
         [BsonElement("discordMessage")]
@@ -100,6 +102,7 @@ namespace CDWPlanner.DTO
                 { "uniqueStateId" , uniqueStateId },
                 { "discordMessage" , (discordMessage ?? new DiscordMessage()).ToBsonDocument() },
                 { "zoomShort" , zoomShort.ToBsonDocument() },
+                { "thumbnail" , thumbnail ?? "https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj" },
             };
     }
 

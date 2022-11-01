@@ -4,11 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Azure.Core;
+using Azure.Messaging.ServiceBus;
+
 using CDWPlanner.DTO;
 using CDWPlanner.Helpers;
 using CDWPlanner.Model;
 
-using Microsoft.Azure.ServiceBus;
 using Microsoft.Extensions.Logging;
 
 using MongoDB.Bson.IO;
@@ -17,16 +19,16 @@ namespace CDWPlanner.Services
 {
     public class ReminderService
     {
-        private readonly ServiceBusConnection _serviceBusConnection;
+        private readonly ServiceBusClient _serviceBusClient;
         private readonly ILogger<PlanEvent> _logger;
 
         public ReminderService
         (
-            ServiceBusConnection serviceBusConnection,
+            ServiceBusClient serviceBusClient,
             ILogger<PlanEvent> logger
         )
         {
-            _serviceBusConnection = serviceBusConnection;
+            _serviceBusClient = serviceBusClient;
             _logger = logger;
         }
 
@@ -61,7 +63,20 @@ namespace CDWPlanner.Services
                 return;
             }
 
-            var topicClient = new TopicClient(_serviceBusConnection, "wakeuptimer", RetryPolicy.Default);
+            //var cli = new ServiceBusClient(_serviceBusConnection, new ServiceBusClientOptions
+            //{
+            //    RetryOptions = new ServiceBusRetryOptions
+            //    {
+            //        Delay = TimeSpan.FromSeconds(1),
+            //        MaxDelay = TimeSpan.FromSeconds(10),
+            //        MaxRetries = 5,
+            //        Mode = ServiceBusRetryMode.Exponential
+            //    }
+            //});
+            var topicClient = _serviceBusClient.CreateSender("wakeuptimer");
+            
+            
+            //var topicClient = new TopicClient(_serviceBusConnection, "wakeuptimer", RetryPolicy.Default);
 
             if (dbWorkshop?.callbackMessageSequenceNumber is { } oldSequenceNumber)
             {
@@ -76,14 +91,13 @@ namespace CDWPlanner.Services
             }
 
             incomingWorkshop.uniqueStateId = Guid.NewGuid();
-            var msg = new Message
+            var msg = new ServiceBusMessage(Newtonsoft.Json.JsonConvert.SerializeObject(new CallbackMessage
             {
-                ScheduledEnqueueTimeUtc = scheduledEnqueueTimeUtc.DateTime,
-                Body = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(new CallbackMessage
-                {
-                    UniqueStateId = incomingWorkshop.uniqueStateId,
-                    Date = beginDate.DateTime
-                }))
+                UniqueStateId = incomingWorkshop.uniqueStateId,
+                Date = beginDate.DateTime
+            }))
+            {
+                ScheduledEnqueueTime = scheduledEnqueueTimeUtc.DateTime, 
             };
 
             var seq = await topicClient.ScheduleMessageAsync(msg, scheduledEnqueueTimeUtc);
