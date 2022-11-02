@@ -1,14 +1,19 @@
 using CDWPlanner.DTO;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
+
 using MongoDB.Bson;
+
 using Moq;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
+
 using Xunit;
 
 namespace CDWPlanner.Tests
@@ -44,16 +49,16 @@ namespace CDWPlanner.Tests
             var logger = Mock.Of<ILogger>();
 
             var fileReader = new Mock<IGitHubFileReader>();
-            fileReader.Setup(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
+            fileReader.Setup(fr => fr.GetWorkshopData(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(null, null, fileReader.Object, null, null, null);
+            var planEvent = new PlanEvent(null, null, fileReader.Object, null, null, null, null, null, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
             collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()), Times.Once);
-            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Once);
+            fileReader.Verify(fr => fr.GetWorkshopData(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Once);
             Assert.NotNull(operation);
             Assert.Equal("PLAN.yml", operation.FolderInfo.File);
             Assert.Equal("2020-07-17", operation.FolderInfo.DateFolder);
@@ -100,16 +105,16 @@ namespace CDWPlanner.Tests
             var logger = Mock.Of<ILogger>();
 
             var fileReader = new Mock<IGitHubFileReader>();
-            fileReader.Setup(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
+            fileReader.Setup(fr => fr.GetWorkshopData(It.IsAny<FolderFileInfo>(), It.IsAny<string>()))
                 .Returns(Task.FromResult(new WorkshopsRoot()))
                 .Verifiable();
 
-            var planEvent = new PlanEvent(null, null, fileReader.Object, null, null, null);
+            var planEvent = new PlanEvent(null, null, fileReader.Object, null, null, null, null, null, null, null);
             var result = await planEvent.ReceiveFromGitHub(githubWebhookRequest.HttpRequestMock.Object, collector.Object, logger);
 
             Assert.IsType<AcceptedResult>(result);
             collector.Verify(c => c.Add(It.IsAny<WorkshopOperation>()), Times.Exactly(2));
-            fileReader.Verify(fr => fr.GetYMLFileFromGitHub(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Exactly(2));
+            fileReader.Verify(fr => fr.GetWorkshopData(It.IsAny<FolderFileInfo>(), It.IsAny<string>()), Times.Exactly(2));
             Assert.Equal(2, operations.Count);
             Assert.Equal("PLAN.yml", operations[0].FolderInfo.File);
             Assert.Equal("2020-07-17", operations[0].FolderInfo.DateFolder);
@@ -173,7 +178,7 @@ namespace CDWPlanner.Tests
     - Sonja
   zoom: 'link'";
 
-            var getContent = GitHubFileReader.YamlToWorkshops(workshop);
+            var getContent = GitHubFileReader.Deserialize(workshop);
 
             Assert.Equal("13:45", getContent.workshops[0].begintime);
             Assert.Equal("15:45", getContent.workshops[0].endtime);

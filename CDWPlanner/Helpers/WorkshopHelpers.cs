@@ -44,6 +44,7 @@ namespace CDWPlanner.Helpers
             return newWorkshop.title != oldWorkshop.title
                    || newWorkshop.description != oldWorkshop.description
                    || newWorkshop.prerequisites != oldWorkshop.prerequisites
+                   || newWorkshop.thumbnail != oldWorkshop.thumbnail
                    || TimeHasChanged(oldWorkshop, newWorkshop);
         }
     }

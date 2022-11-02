@@ -7,16 +7,50 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 using CDWPlanner.Model;
+using ShlinkDotnet.Web;
 
 namespace CDWPlanner.Services
 {
     public class LinkShortenerService
     {
+        private readonly ShlinkApiClient _shlinkApiClient;
         private HttpClient _client;
 
-        public LinkShortenerService(IHttpClientFactory factory)
+        public LinkShortenerService
+        (
+            IHttpClientFactory factory,
+            ShlinkApiClient shlinkApiClient
+        )
         {
             _client = factory.CreateClient("linkshortener");
+            _shlinkApiClient = shlinkApiClient;
+        }
+
+        public async Task<ShortenedLink> ShortenUrl(string desiredId, string urlToShort)
+        {
+            var result = await _shlinkApiClient.CreateOrUpdateAsync(new()
+            {
+                LongUrl = urlToShort,
+                ShortCode = desiredId,
+                Tags = new[]
+                {
+                    "CoderDojo",
+                    "Workshop"
+                } 
+            });
+
+            return new ShortenedLink
+            {
+                Id = result.ShortCode,
+                Url = result.LongUrl,
+                ShortLink = result.ShortUrl,
+                AccessKey = "00000"
+            };
+        }
+
+        public async Task CreateThumbnail()
+        {
+            
         }
 
         /// <summary>
@@ -63,7 +97,7 @@ namespace CDWPlanner.Services
                         throw new Exception($"The linkshortener service returned '{response.Message}'");
                     }
                 }
-                
+
                 throw new Exception($"The linkshortener service returned '{content}'");
             }
             catch (Exception e)

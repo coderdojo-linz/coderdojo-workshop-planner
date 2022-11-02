@@ -7,7 +7,8 @@ using CDWPlanner.Model;
 using CDWPlanner.Services;
 using Discord;
 using Discord.Rest;
-using Microsoft.Azure.ServiceBus;
+using Azure.Messaging.ServiceBus;
+using ShlinkDotnet.Extensions;
 
 [assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
 [assembly: InternalsVisibleTo("CDWPlanner.Tests")]
@@ -16,8 +17,11 @@ namespace CDWPlanner
 {
     internal class Startup : FunctionsStartup
     {
+        public Microsoft.Extensions.Configuration.IConfiguration Configuration { get; private set; }
+
         public override void Configure(IFunctionsHostBuilder builder)
         {
+            Configuration = builder.GetContext().Configuration;
             var githubUser = Environment.GetEnvironmentVariable("GITHUBUSER", EnvironmentVariableTarget.Process);
             builder.Services.AddHttpClient("github", c =>
             {
@@ -58,28 +62,38 @@ namespace CDWPlanner
 
             builder.Services.AddSingleton(new LinkShortenerSettings(lsAccessKey));
 
+            builder.Services.AddShlink(Configuration.GetSection("shlink"));
+
             ConfigureDiscordBot(builder);
             ConfigureServiceBus(builder);
         }
 
+
+
         private void ConfigureServiceBus(IFunctionsHostBuilder builder)
         {
-            var connectionString = Environment.GetEnvironmentVariable("ServiceBusConnection", EnvironmentVariableTarget.Process);
-            var connection = new ServiceBusConnection(connectionString);
+            
             //var wakeupTimerConnection = new TopicClient(connection, "WakeupTimer", RetryPolicy.Default);
-            builder.Services.AddSingleton(connection);
+            builder.Services.AddTransient(sp =>
+            {
+                var connectionString = Environment.GetEnvironmentVariable("ServiceBusConnection", EnvironmentVariableTarget.Process);
+                return new ServiceBusClient(connectionString);
+            });
         }
 
-        private static void ConfigureDiscordBot(IFunctionsHostBuilder builder)
+        private void ConfigureDiscordBot(IFunctionsHostBuilder builder)
         {
             builder.Services.AddSingleton<IDiscordClient>(new DiscordRestClient(new DiscordRestConfig
             {
                 DefaultRetryMode = RetryMode.AlwaysRetry
             }));
 
-            var discordBotToken = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN", EnvironmentVariableTarget.Process);
-            var rawGuildId = Environment.GetEnvironmentVariable("DISCORD_BOT_GUILD_ID", EnvironmentVariableTarget.Process);
-            var rawChannelId = Environment.GetEnvironmentVariable("DISCORD_BOT_CHANNEL_ID", EnvironmentVariableTarget.Process);
+
+            
+
+            var discordBotToken = Configuration["DISCORD_BOT_TOKEN"]; // Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN", EnvironmentVariableTarget.Process);
+            var rawGuildId = Configuration["DISCORD_BOT_GUILD_ID"];  // Environment.GetEnvironmentVariable("DISCORD_BOT_GUILD_ID", EnvironmentVariableTarget.Process);
+            var rawChannelId = Configuration["DISCORD_BOT_CHANNEL_ID"]; // Environment.GetEnvironmentVariable("DISCORD_BOT_CHANNEL_ID", EnvironmentVariableTarget.Process);
 
             builder.Services.AddSingleton(new DiscordSettings()
             {
@@ -89,6 +103,8 @@ namespace CDWPlanner
             });
 
             builder.Services.AddSingleton<IDiscordBotService, DiscordBotService>();
+
+            //((DiscordBotService)(builder.Services.BuildServiceProvider().GetService<IDiscordBotService>())).SendTestMessage().Wait();
         }
     }
 }

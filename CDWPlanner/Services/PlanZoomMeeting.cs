@@ -15,7 +15,7 @@ namespace CDWPlanner
         Meeting GetExistingMeeting(IEnumerable<Meeting> existingMeetingBuffer, string shortCode, DateTime date);
         Task<IEnumerable<Meeting>> GetExistingMeetingsAsync();
         void UpdateMeetingAsync(Meeting meeting, string time, string date, string title, string description, string shortCode, string userId);
-        Task<IEnumerable<User>> GetUsersAsync();
+        Task<IEnumerable<User>> ListUsersAsync();
         User GetUser(IEnumerable<User> usersBuffer, string zoomUser);
     }
 
@@ -53,7 +53,7 @@ namespace CDWPlanner
                 && meeting.start_time.Month == date.Month
                 && meeting.start_time.Day == date.Day);
 
-        public async Task<IEnumerable<User>> GetUsersAsync()
+        public async Task<IEnumerable<User>> ListUsersAsync()
         {
             var usersDetails = new List<User>();
             var usersListAsync = await GetFromZoomAsync<UsersRoot>($"users");
@@ -72,6 +72,7 @@ namespace CDWPlanner
         private async Task<T> GetFromZoomAsync<T>(string url)
         {
             using var getResponse = await client.GetAsync(url);
+            getResponse.EnsureSuccessStatusCode();
             var getJsonContent = await getResponse.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<T>(getJsonContent);
         }

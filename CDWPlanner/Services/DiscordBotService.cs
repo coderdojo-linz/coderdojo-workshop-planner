@@ -36,18 +36,22 @@ namespace CDWPlanner
 
         private readonly IDiscordClient _discordClient;
         private readonly DiscordSettings _settings;
-        private readonly ILogger _logger;
 
         public DiscordBotService
         (
             IDiscordClient discordClient,
-            DiscordSettings settings,
-            ILogger logger
+            DiscordSettings settings
         )
         {
             _discordClient = discordClient;
             this._settings = settings;
-            _logger = logger;
+        }
+
+        public async Task SendTestMessage()
+        {
+            await EnsureClientLoggedIn();
+            var channel = (await _discordClient.GetChannelAsync(_settings.ChannelId)) as IMessageChannel;
+            await channel?.SendMessageAsync("Test message");
         }
 
         /// <summary>
@@ -140,7 +144,7 @@ namespace CDWPlanner
             var guild = await _discordClient.GetGuildAsync(_settings.GuildId);
             var channel = await guild.GetTextChannelAsync(_settings.ChannelId);
 
-            await channel.SendMessageAsync($"Aufgepasst! Der Workshop {workShop.title} beginnt in Kürze! {string.Join(" ", mentions)}");
+            await channel.SendMessageAsync($"Aufgepasst! Der Workshop {workShop.title} beginnt in Kürze! Link: {workShop.zoomShort?.ShortLink ?? workShop.zoom}\n{string.Join(" ", mentions)}");
         }
 
         private DiscordMessage GetDiscordMessage(Workshop dbWorkshop)
@@ -222,7 +226,7 @@ namespace CDWPlanner
                 eb.AddField("Zoom", meetingLink);
             }
 
-            eb = eb.WithThumbnailUrl(GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
+            eb = eb.WithThumbnailUrl(!String.IsNullOrEmpty(workshop.thumbnail) ? workshop.thumbnail : GetDefaultThumbnail(workshop.title)) // TODO: overwrite by yaml
                 .WithColor(Color.Red)
                 .WithUrl($"https://linz.coderdojo.net/termine/#{workshop.shortCode}") //TODO: Implement direct navigation support on site
                 .WithFooter(x => x.WithText("Reagiere mit \U0001F44D, um benachrichtigt zu werden")); // Thumbsup

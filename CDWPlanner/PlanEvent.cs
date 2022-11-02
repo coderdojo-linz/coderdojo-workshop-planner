@@ -21,8 +21,8 @@ using System.Threading;
 using CDWPlanner.Constants;
 using CDWPlanner.Model;
 using CDWPlanner.Services;
-using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
+using CDWPlanner.Model.Config;
 
 namespace CDWPlanner
 {
@@ -68,7 +68,7 @@ namespace CDWPlanner
         [FunctionName("AddGitHubContent")]
         public async Task<IActionResult> ReceiveFromGitHub(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
-            [ServiceBus("workshopupdate", Connection = "ServiceBusConnection", EntityType = EntityType.Topic)] ICollector<WorkshopOperation> collector,
+            [ServiceBus("workshopupdate", Connection = "ServiceBusConnection", EntityType = ServiceBusEntityType.Topic)] ICollector<WorkshopOperation> collector,
             ILogger log)
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -92,21 +92,71 @@ namespace CDWPlanner
 
                 try
                 {
-                    // Add the data to the collection
-                    foreach (var item in commitListAdded.Concat(commitListChanged))
+                    var mergedList = commitListAdded.Concat(commitListChanged).ToList();
+                    if (!mergedList.Any())
                     {
-                        item.Workshops = await fileReader.GetYMLFileFromGitHub(item.FolderInfo, commit.id);
-                        collector.Add(item);
+                        return new AcceptedResult();
+                    }
+
+                    var imageConfig = await fileReader.GetYMLFile<ImageConfig>(commit.id, ".config\\imageconfig.yml");
+                    //var imageConfig = await fileReader.GetYMLFile<ImageConfig>("master", ".config\\imageconfig.yml");
+                    // Add the data to the collection
+                    foreach (var operation in mergedList)
+                    {
+                        operation.Workshops = await fileReader.GetWorkshopData(operation.FolderInfo, commit.id);
+                        ComputeThumbnailsAsync(operation, imageConfig);
+
+                        collector.Add(operation);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    log.LogInformation("Wrong YML Format, check README.md for correct format");
+                    log.LogInformation($"Wrong YML Format, check README.md for correct format ({ex})");
                     return new BadRequestResult();
                 }
             }
 
             return new AcceptedResult();
+        }
+
+
+        private static void ComputeThumbnailsAsync(WorkshopOperation operation, ImageConfig imageConfig)
+        {
+            if (imageConfig == null)
+            {
+                return;
+            }
+            
+            foreach (var workshop in operation.Workshops.workshops)
+            {
+                if (!string.IsNullOrEmpty(workshop.thumbnail))
+                {
+                    continue;
+                }
+
+                var idConfig
+                    = imageConfig.ShortCodes.FirstOrDefault(x => x.Equals(workshop.shortCode, false))
+                    ?? imageConfig.ShortCodes.FirstOrDefault(x => x.Equals(workshop.shortCode, true));
+
+                if (idConfig != null)
+                {
+                    workshop.thumbnail = idConfig.Thumbnail;
+                    continue;
+                }
+
+                var titleConfig
+                    = imageConfig.Keywords.FirstOrDefault(x => x.Contains(workshop.title, false))
+                    ?? imageConfig.Keywords.FirstOrDefault(x => x.Contains(workshop.title, true))
+                    ?? imageConfig.Keywords.FirstOrDefault(x => x.Contains(workshop.description, false))
+                    ?? imageConfig.Keywords.FirstOrDefault(x => x.Contains(workshop.description, true))
+                    ;
+
+                if (titleConfig != null)
+                {
+                    workshop.thumbnail = titleConfig.Thumbnail;
+                    continue;
+                }
+            }
         }
 
         // Subscribtion of PlanEvent Topic
@@ -118,6 +168,7 @@ namespace CDWPlanner
             ILogger log
         )
         {
+            //return;
             // Now it's JSON
             var workshopOperation = JsonSerializer.Deserialize<WorkshopOperation>(workshopJson);
 
@@ -140,7 +191,7 @@ namespace CDWPlanner
             // Read all existing meetings in an in-memory buffer.
             var existingMeetingBuffer = await planZoomMeeting.GetExistingMeetingsAsync();
 
-            var usersBuffer = await planZoomMeeting.GetUsersAsync();
+            var usersBuffer = await planZoomMeeting.ListUsersAsync();
 
             // Helper variable for calculating user name.
             // Background: We need to distribute zoom meetings between four zoom users (zoom01-zoom04).
@@ -188,18 +239,18 @@ namespace CDWPlanner
                         {
                             //dbWorkshop.zoomShort.Id
                             var id = incomingWorkShop.shortCode;
-                            var accessKey = dbWorkshop.zoomShort.Id == incomingWorkShop.shortCode
-                                ? dbWorkshop.zoomShort.AccessKey
-                                : _linkShortenerSettings.AccessKey;
-
-                            incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(id, accessKey, incomingWorkShop.zoom);
+                            incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl
+                            (
+                                incomingWorkShop.shortCode,
+                                incomingWorkShop.zoom
+                            );
                         }
                     }
                     else
                     {
                         // Def. create new
 
-                        incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(incomingWorkShop.shortCode, _linkShortenerSettings.AccessKey, incomingWorkShop.zoom);
+                        incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(incomingWorkShop.shortCode, incomingWorkShop.zoom);
                     }
                 }
 
@@ -298,7 +349,7 @@ namespace CDWPlanner
             var eventFound = await dataAccess.ReadEventForDateFromDBAsync(parsedUtcDateEvent);
             var mentorsFromDB = await dataAccess.ReadMentorsFromDBAsync();
 
-            var usersBuffer = await planZoomMeeting.GetUsersAsync();
+            var usersBuffer = await planZoomMeeting.ListUsersAsync();
             foreach (var w in eventFound.workshops)
             {
                 var user = planZoomMeeting.GetUser(usersBuffer, w.zoomUser);
