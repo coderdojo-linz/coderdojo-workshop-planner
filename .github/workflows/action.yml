@@ -8,7 +8,7 @@ on:
 env:
   AZURE_FUNCTIONAPP_NAME: CDWPlanner
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
-  DOTNET_VERSION: '3.1.301'
+  DOTNET_VERSION: '6.0'
 
 jobs:
   build-and-deploy:
@@ -18,7 +18,7 @@ jobs:
       uses: actions/checkout@master
 
     - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
