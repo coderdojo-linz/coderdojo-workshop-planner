@@ -1,10 +1,12 @@
-﻿using CDWPlanner.DTO;
+﻿using Azure.Core;
+using CDWPlanner.DTO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace CDWPlanner
@@ -22,10 +24,12 @@ namespace CDWPlanner
     public class PlanZoomMeeting : IPlanZoomMeeting
     {
         private readonly HttpClient client;
+        private readonly HttpClient zoomTokenClient;
 
         public PlanZoomMeeting(IHttpClientFactory clientFactory)
         {
             client = clientFactory.CreateClient("zoom");
+            zoomTokenClient = clientFactory.CreateClient("zoomToken");
         }
 
         public async Task<IEnumerable<Meeting>> GetExistingMeetingsAsync()
@@ -68,10 +72,31 @@ namespace CDWPlanner
 
         public User GetUser(IEnumerable<User> usersBuffer, string zoomUser) =>
             usersBuffer.Where(u => (zoomUser == u.email) ||  (zoomUser == u.id)).FirstOrDefault();
-        
+
+        internal record TokenResponse([property: JsonPropertyName("access_token")] string AccessToken);
+
+        internal async Task<string> GetAccessToken()
+        {
+            var zoomAccountId = Environment.GetEnvironmentVariable("ZOOMACCOUNTID", EnvironmentVariableTarget.Process);
+            var zoomClientId = Environment.GetEnvironmentVariable("ZOOMCLIENTID", EnvironmentVariableTarget.Process);
+            var zoomClientSecret = Environment.GetEnvironmentVariable("ZOOMCLIENTSECRET", EnvironmentVariableTarget.Process);
+            var body = $"grant_type=account_credentials&account_id={zoomAccountId}";
+            var tokenRequest = new HttpRequestMessage(HttpMethod.Post, "token")
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/x-www-form-urlencoded")
+            };
+            tokenRequest.Headers.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{zoomClientId}:{zoomClientSecret}"))}");
+            var tokenResponse = zoomTokenClient.SendAsync(tokenRequest).Result;
+            tokenResponse.EnsureSuccessStatusCode();
+            var token = await JsonSerializer.DeserializeAsync<TokenResponse>(tokenResponse.Content.ReadAsStream());
+            return token.AccessToken;
+        }
+
         private async Task<T> GetFromZoomAsync<T>(string url)
         {
-            using var getResponse = await client.GetAsync(url);
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Authorization", $"Bearer {await GetAccessToken()}");
+            using var getResponse = await client.SendAsync(request);
             getResponse.EnsureSuccessStatusCode();
             var getJsonContent = await getResponse.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<T>(getJsonContent);
@@ -88,6 +113,7 @@ namespace CDWPlanner
                 Method = HttpMethod.Patch,
                 Content = CreateStringContentForMeeting(startTime, title, description, shortCode, meeting.password, userId)
             };
+            meetingRequest.Headers.Add("Authorization", $"Bearer {await GetAccessToken()}");
 
             using var getResponse = await client.SendAsync(meetingRequest);
             var responseContent = await getResponse.Content.ReadAsStringAsync();
@@ -106,6 +132,7 @@ namespace CDWPlanner
                 Method = HttpMethod.Post,
                 Content = CreateStringContentForMeeting(startTime, title, description, shortCode, randomPsw, userId)
             };
+            meetingRequest.Headers.Add("Authorization", $"Bearer {await GetAccessToken()}");
 
             using var getResponse = await client.SendAsync(meetingRequest);
             getResponse.EnsureSuccessStatusCode();

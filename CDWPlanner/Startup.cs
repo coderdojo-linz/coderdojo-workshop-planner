@@ -9,6 +9,9 @@ using Discord;
 using Discord.Rest;
 using Azure.Messaging.ServiceBus;
 using ShlinkDotnet.Extensions;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json.Serialization;
 
 [assembly: FunctionsStartup(typeof(CDWPlanner.Startup))]
 [assembly: InternalsVisibleTo("CDWPlanner.Tests")]
@@ -31,11 +34,17 @@ namespace CDWPlanner
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
             });
 
-            var zoomToken = Environment.GetEnvironmentVariable("ZOOMTOKEN", EnvironmentVariableTarget.Process);
+            builder.Services.AddHttpClient("zoomToken", c =>
+            {
+                c.BaseAddress = new Uri("https://zoom.us/oauth/");
+                c.DefaultRequestHeaders.Add("Host", "zoom.us");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/x-www-form-urlencoded");
+                c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
+            });
+
             builder.Services.AddHttpClient("zoom", c =>
             {
                 c.BaseAddress = new Uri("https://api.zoom.us/v2/");
-                c.DefaultRequestHeaders.Add(HttpRequestHeader.Authorization.ToString(), $"Bearer {zoomToken}");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.ContentType.ToString(), "application/json;charset='utf-8'");
                 c.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/json");
                 c.DefaultRequestHeaders.Add("Timeout", "1000000000");
