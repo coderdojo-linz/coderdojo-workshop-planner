@@ -1,6 +1,7 @@
 name: Deploy CDW-Planner to Azure Function App
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
