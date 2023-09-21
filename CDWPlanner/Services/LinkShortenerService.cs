@@ -48,10 +48,10 @@ namespace CDWPlanner.Services
             };
         }
 
-        public async Task CreateThumbnail()
-        {
+        //public async Task CreateThumbnail()
+        //{
             
-        }
+        //}
 
         /// <summary>
         ///
@@ -100,7 +100,7 @@ namespace CDWPlanner.Services
 
                 throw new Exception($"The linkshortener service returned '{content}'");
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 throw;
             }

@@ -99,7 +99,7 @@ namespace CDWPlanner.DTO
                 { "zoom" , zoom },
                 { "shortCode" , shortCode },
                 { "callbackMessageSequenceNumber" , callbackMessageSequenceNumber },
-                { "uniqueStateId" , uniqueStateId },
+                { "uniqueStateId" , new BsonBinaryData(uniqueStateId, GuidRepresentation.Standard) },
                 { "discordMessage" , (discordMessage ?? new DiscordMessage()).ToBsonDocument() },
                 { "zoomShort" , zoomShort.ToBsonDocument() },
                 { "thumbnail" , thumbnail ?? "https://yt3.ggpht.com/ytc/AAUvwniyiRksrFMPSTrM9xBHSj_uw6vi5unadcUA4qXg=s176-c-k-c0x00ffffff-no-rj" },
