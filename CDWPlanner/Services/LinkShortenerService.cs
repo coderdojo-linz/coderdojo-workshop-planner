@@ -53,14 +53,16 @@ namespace CDWPlanner.Services
             catch (Exception ex)
             {
                 log?.LogError(ex, "Error while creating short link");
-                return new ShortenedLink
-                {
-                    Id = string.Empty,
-                    Url = urlToShort,
-                    ShortLink = urlToShort,
-                    AccessKey = "00000"
-                };
             }
+
+            log?.LogWarning("Using long link, ignoring short link error");
+            return new ShortenedLink
+            {
+                Id = string.Empty,
+                Url = urlToShort,
+                ShortLink = urlToShort,
+                AccessKey = "00000"
+            };
         }
 
         //public async Task CreateThumbnail()
