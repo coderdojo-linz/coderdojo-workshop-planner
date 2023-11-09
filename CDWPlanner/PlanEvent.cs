@@ -242,7 +242,8 @@ namespace CDWPlanner
                             incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl
                             (
                                 incomingWorkShop.shortCode,
-                                incomingWorkShop.zoom
+                                incomingWorkShop.zoom,
+                                log
                             );
                         }
                     }
@@ -250,7 +251,7 @@ namespace CDWPlanner
                     {
                         // Def. create new
 
-                        incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(incomingWorkShop.shortCode, incomingWorkShop.zoom);
+                        incomingWorkShop.zoomShort = await _linkShortenerService.ShortenUrl(incomingWorkShop.shortCode, incomingWorkShop.zoom, log);
                     }
                 }
 

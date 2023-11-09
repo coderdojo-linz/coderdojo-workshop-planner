@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 
 using CDWPlanner.Model;
 using ShlinkDotnet.Web;
+using Microsoft.Extensions.Logging;
 
 namespace CDWPlanner.Services
 {
@@ -26,26 +27,40 @@ namespace CDWPlanner.Services
             _shlinkApiClient = shlinkApiClient;
         }
 
-        public async Task<ShortenedLink> ShortenUrl(string desiredId, string urlToShort)
+        public async Task<ShortenedLink> ShortenUrl(string desiredId, string urlToShort, ILogger log = null)
         {
-            var result = await _shlinkApiClient.CreateOrUpdateAsync(new()
+            try
             {
-                LongUrl = urlToShort,
-                ShortCode = desiredId,
-                Tags = new[]
+                var result = await _shlinkApiClient.CreateOrUpdateAsync(new()
                 {
-                    "CoderDojo",
-                    "Workshop"
-                } 
-            });
+                    LongUrl = urlToShort,
+                    ShortCode = desiredId,
+                    Tags = new[]
+                    {
+                        "CoderDojo",
+                        "Workshop"
+                    } 
+                });
 
-            return new ShortenedLink
+                return new ShortenedLink
+                {
+                    Id = result.ShortCode,
+                    Url = result.LongUrl,
+                    ShortLink = result.ShortUrl,
+                    AccessKey = "00000"
+                };
+            }
+            catch (Exception ex)
             {
-                Id = result.ShortCode,
-                Url = result.LongUrl,
-                ShortLink = result.ShortUrl,
-                AccessKey = "00000"
-            };
+                log?.LogError(ex, "Error while creating short link");
+                return new ShortenedLink
+                {
+                    Id = string.Empty,
+                    Url = urlToShort,
+                    ShortLink = urlToShort,
+                    AccessKey = "00000"
+                };
+            }
         }
 
         //public async Task CreateThumbnail()
